@@ -698,6 +698,22 @@ app.get('/api/admin/bookings', verifyToken, async (req, res) => {
           
           // If appointment time has passed, mark as completed
           if (appointmentDateTime < now) {
+            // Save revenue to revenue_history before updating status
+            if (data.service_price && data.status !== 'completed' && data.status !== 'cancelled') {
+              updatePromises.push(
+                db.collection('revenue_history').add({
+                  booking_id: doc.id,
+                  barber_id: data.barber_id,
+                  service_price: data.service_price,
+                  appointment_date: data.appointment_date,
+                  appointment_time: data.appointment_time,
+                  customer_name: data.customer_name,
+                  service_name: data.service_name,
+                  created_at: FieldValue.serverTimestamp()
+                })
+              );
+            }
+            
             // Update in Firestore
             updatePromises.push(
               db.collection('bookings').doc(doc.id).update({
@@ -783,6 +799,35 @@ app.patch('/api/admin/bookings/:id', verifyToken, async (req, res) => {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
+    const bookingData = doc.data();
+    const oldStatus = bookingData.status;
+
+    // If changing to completed, save revenue to revenue_history
+    if (status === 'completed' && oldStatus !== 'completed' && oldStatus !== 'cancelled') {
+      if (bookingData.service_price) {
+        await db.collection('revenue_history').add({
+          booking_id: id,
+          barber_id: bookingData.barber_id,
+          service_price: bookingData.service_price,
+          appointment_date: bookingData.appointment_date,
+          appointment_time: bookingData.appointment_time,
+          customer_name: bookingData.customer_name,
+          service_name: bookingData.service_name,
+          created_at: FieldValue.serverTimestamp()
+        });
+      }
+    }
+
+    // If changing from completed to something else, remove from revenue_history
+    if (oldStatus === 'completed' && status !== 'completed') {
+      const revenueSnapshot = await db.collection('revenue_history')
+        .where('booking_id', '==', id)
+        .get();
+      
+      const deletePromises = revenueSnapshot.docs.map(doc => doc.ref.delete());
+      await Promise.all(deletePromises);
+    }
+
     await docRef.update({
       status,
       updated_at: FieldValue.serverTimestamp()
@@ -805,7 +850,26 @@ app.delete('/api/admin/bookings/:id', verifyToken, async (req, res) => {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
-    await docRef.delete();
+    const bookingData = doc.data();
+    
+    // If booking is completed, keep revenue_history (don't delete revenue records)
+    // Only delete the booking document, revenue_history stays intact
+    if (bookingData.status === 'completed') {
+      // Revenue is already saved in revenue_history, just delete the booking
+      await docRef.delete();
+    } else {
+      // For non-completed bookings, delete normally
+      // Also check if there's any revenue_history entry and remove it
+      const revenueSnapshot = await db.collection('revenue_history')
+        .where('booking_id', '==', id)
+        .get();
+      
+      const deletePromises = revenueSnapshot.docs.map(doc => doc.ref.delete());
+      await Promise.all(deletePromises);
+      
+      await docRef.delete();
+    }
+
     res.json({ message: 'Booking deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -932,10 +996,47 @@ app.get('/api/admin/stats', verifyToken, async (req, res) => {
     
     stats.todayBookings = todayCount;
 
-    // Total revenue
+    // Total revenue - calculate from revenue_history (completed bookings) and non-cancelled bookings
     let totalRevenue = 0;
+    
+    // First, get revenue from revenue_history (completed bookings that may have been deleted)
+    const revenueHistorySnapshot = await db.collection('revenue_history').get();
+    revenueHistorySnapshot.forEach(doc => {
+      const data = doc.data();
+      // Filter by barber_id if needed
+      if (userBarberId && showAll !== 'true') {
+        const dataBarberId = data.barber_id;
+        const userBarberIdNum = parseInt(userBarberId, 10);
+        const userBarberIdStr = String(userBarberId);
+        const matchesBarber = dataBarberId === userBarberIdNum || 
+                             dataBarberId === userBarberIdStr || 
+                             String(dataBarberId) === userBarberIdStr ||
+                             Number(dataBarberId) === userBarberIdNum;
+        if (!matchesBarber) {
+          return; // Skip this revenue
+        }
+      }
+      if (data.service_price) {
+        totalRevenue += parseFloat(data.service_price) || 0;
+      }
+    });
+    
+    // Then, add revenue from non-completed, non-cancelled bookings (that are not in revenue_history)
+    const bookingsInRevenueHistory = new Set();
+    revenueHistorySnapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.booking_id) {
+        bookingsInRevenueHistory.add(data.booking_id);
+      }
+    });
+    
     totalSnapshot.forEach(doc => {
       const data = doc.data();
+      // Skip if already counted in revenue_history
+      if (bookingsInRevenueHistory.has(doc.id)) {
+        return;
+      }
+      
       // Filter by barber_id if needed
       if (userBarberId && showAll !== 'true') {
         const dataBarberId = data.barber_id;
@@ -949,10 +1050,12 @@ app.get('/api/admin/stats', verifyToken, async (req, res) => {
           return; // Skip this booking
         }
       }
-      if (data.status !== 'cancelled' && data.service_price) {
-        totalRevenue += data.service_price;
+      // Only count non-cancelled bookings (completed ones are already in revenue_history)
+      if (data.status !== 'cancelled' && data.status !== 'completed' && data.service_price) {
+        totalRevenue += parseFloat(data.service_price) || 0;
       }
     });
+    
     stats.totalRevenue = totalRevenue;
 
     // Revenue by barber with daily trends
@@ -961,13 +1064,73 @@ app.get('/api/admin/stats', verifyToken, async (req, res) => {
       2: { name: 'Emir Gökçeoğlu', total: 0, daily: {} }
     };
 
-    // Calculate revenue for each barber by date
-    totalSnapshot.forEach(doc => {
+    // First, calculate revenue from revenue_history (completed bookings)
+    revenueHistorySnapshot.forEach(doc => {
       const data = doc.data();
       const barberId = data.barber_id;
       const date = data.appointment_date;
       
-      if (data.status !== 'cancelled' && data.service_price && date) {
+      // Filter by barber_id if needed
+      if (userBarberId && showAll !== 'true') {
+        const dataBarberId = barberId;
+        const userBarberIdNum = parseInt(userBarberId, 10);
+        const userBarberIdStr = String(userBarberId);
+        const matchesBarber = dataBarberId === userBarberIdNum || 
+                             dataBarberId === userBarberIdStr || 
+                             String(dataBarberId) === userBarberIdStr ||
+                             Number(dataBarberId) === userBarberIdNum;
+        if (!matchesBarber) {
+          return; // Skip this revenue
+        }
+      }
+      
+      if (data.service_price && date) {
+        const price = parseFloat(data.service_price) || 0;
+        
+        // Check if barber_id is 1 or 2
+        if (barberId === 1 || barberId === '1' || Number(barberId) === 1) {
+          revenueByBarber[1].total += price;
+          if (!revenueByBarber[1].daily[date]) {
+            revenueByBarber[1].daily[date] = 0;
+          }
+          revenueByBarber[1].daily[date] += price;
+        } else if (barberId === 2 || barberId === '2' || Number(barberId) === 2) {
+          revenueByBarber[2].total += price;
+          if (!revenueByBarber[2].daily[date]) {
+            revenueByBarber[2].daily[date] = 0;
+          }
+          revenueByBarber[2].daily[date] += price;
+        }
+      }
+    });
+
+    // Then, add revenue from non-completed, non-cancelled bookings
+    totalSnapshot.forEach(doc => {
+      const data = doc.data();
+      // Skip if already counted in revenue_history
+      if (bookingsInRevenueHistory.has(doc.id)) {
+        return;
+      }
+      
+      const barberId = data.barber_id;
+      const date = data.appointment_date;
+      
+      // Filter by barber_id if needed
+      if (userBarberId && showAll !== 'true') {
+        const dataBarberId = barberId;
+        const userBarberIdNum = parseInt(userBarberId, 10);
+        const userBarberIdStr = String(userBarberId);
+        const matchesBarber = dataBarberId === userBarberIdNum || 
+                             dataBarberId === userBarberIdStr || 
+                             String(dataBarberId) === userBarberIdStr ||
+                             Number(dataBarberId) === userBarberIdNum;
+        if (!matchesBarber) {
+          return; // Skip this booking
+        }
+      }
+      
+      // Only count non-cancelled, non-completed bookings
+      if (data.status !== 'cancelled' && data.status !== 'completed' && data.service_price && date) {
         const price = parseFloat(data.service_price) || 0;
         
         // Check if barber_id is 1 or 2

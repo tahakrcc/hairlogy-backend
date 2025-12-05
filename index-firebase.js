@@ -565,17 +565,21 @@ app.post('/api/admin/login', async (req, res) => {
 
     console.log(`[Admin Login] Attempting login for username: ${username}`);
 
+    // Case-insensitive username lookup
     const snapshot = await db.collection('admin_users')
-      .where('username', '==', username)
-      .limit(1)
       .get();
+    
+    // Filter in memory for case-insensitive match
+    const userDoc = snapshot.docs.find(doc => {
+      const userData = doc.data();
+      return userData.username && userData.username.toLowerCase() === username.toLowerCase();
+    });
 
-    if (snapshot.empty) {
+    if (!userDoc) {
       console.log(`[Admin Login] User not found: ${username}`);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const userDoc = snapshot.docs[0];
     const user = userDoc.data();
 
     console.log(`[Admin Login] User found: ${user.username}, barber_id: ${user.barber_id || 'none'}`);

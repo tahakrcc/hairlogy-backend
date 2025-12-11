@@ -1576,9 +1576,10 @@ app.listen(PORT, async () => {
     }
   }
 
-  // Schedule cleanup of old bookings
-  scheduleCleanup().catch(err => {
-    console.error('Failed to schedule cleanup:', err);
-  });
+  // Schedule cleanup of old bookings - DISABLED to prevent quota issues
+  // scheduleCleanup().catch(err => {
+  //   console.error('Failed to schedule cleanup:', err);
+  // });
+  console.log('Cleanup scheduling disabled to preserve Firestore quota');
 });
 

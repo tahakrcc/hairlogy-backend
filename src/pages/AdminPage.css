@@ -119,6 +119,57 @@ select option:focus {
   background: var(--accent-hover);
 }
 
+@media (max-width: 768px) {
+  .admin-login-card {
+    max-width: 360px;
+    padding: 28px 22px;
+    margin: 12px;
+  }
+
+  .admin-login-card h1 {
+    font-size: 22px;
+    margin-bottom: 18px;
+  }
+
+  .admin-login-card input {
+    font-size: 16px; /* prevent mobile zoom */
+    padding: 12px 14px;
+  }
+
+  .password-toggle-btn {
+    right: 10px;
+  }
+
+  .login-btn {
+    font-size: 15px;
+    padding: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-login-page {
+    padding: 12px;
+  }
+
+  .admin-login-card {
+    max-width: 100%;
+    padding: 24px 18px;
+    margin: 0;
+  }
+
+  .admin-login-card h1 {
+    font-size: 20px;
+  }
+
+  .admin-login-card .form-group {
+    margin-bottom: 16px;
+  }
+
+  .password-toggle-btn {
+    right: 8px;
+  }
+}
+
 .admin-header {
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);

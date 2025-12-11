@@ -122,21 +122,21 @@ async function initializeDatabase() {
     if (!yasinExists) {
       await db.collection('admin_users').add({
         username: 'yasin',
-        password: bcrypt.hashSync('admin123', 10),
+        password: bcrypt.hashSync('Yasin@2025!', 10),
         barber_id: 1, // Hıdır Yasin Gökçeoğlu
         created_at: FieldValue.serverTimestamp()
       });
-      console.log('Admin user created: yasin/admin123 (barber_id: 1)');
+      console.log('Admin user created: yasin/Yasin@2025! (barber_id: 1)');
     }
     
     if (!emirExists) {
       await db.collection('admin_users').add({
         username: 'emir',
-        password: bcrypt.hashSync('admin123', 10),
+        password: bcrypt.hashSync('Emir@2025!', 10),
         barber_id: 2, // Emir Gökçeoğlu
         created_at: FieldValue.serverTimestamp()
       });
-      console.log('Admin user created: emir/admin123 (barber_id: 2)');
+      console.log('Admin user created: emir/Emir@2025! (barber_id: 2)');
     }
     
     if (yasinExists && emirExists) {
@@ -166,13 +166,13 @@ async function initializeDatabase() {
     // Check if admin exists
     const adminSnapshot = await db.collection('admin_users').where('username', '==', 'admin').limit(1).get();
     if (adminSnapshot.empty) {
-      const hashedPassword = bcrypt.hashSync('admin123', 10);
+      const hashedPassword = bcrypt.hashSync('Admin@2025!', 10);
       await db.collection('admin_users').add({
         username: 'admin',
         password: hashedPassword,
         created_at: FieldValue.serverTimestamp()
       });
-      console.log('Default admin created: username=admin, password=admin123');
+      console.log('Default admin created: username=admin, password=Admin@2025!');
     }
   } catch (error) {
     console.error('Database initialization error:', error);

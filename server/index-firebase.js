@@ -1530,9 +1530,15 @@ async function cleanupOldBookings() {
 
 // Run cleanup on startup and then daily
 async function scheduleCleanup() {
-  // Don't run cleanup immediately on startup to avoid quota issues
-  // Only schedule it for later
+  // DISABLED: Cleanup temporarily disabled to prevent quota issues
+  // Firebase free tier has limited quota (50K reads/day)
+  // Manual cleanup can be done via admin panel if needed
   
+  console.log('Cleanup scheduling disabled to preserve Firestore quota');
+  console.log('Note: Old bookings can be manually deleted via admin panel if needed');
+  
+  // Uncomment below to re-enable cleanup (not recommended for free tier)
+  /*
   // Run daily at 2 AM
   const now = new Date();
   const tomorrow = new Date(now);
@@ -1548,7 +1554,7 @@ async function scheduleCleanup() {
   }, msUntilTomorrow);
   
   console.log(`Next cleanup scheduled for: ${tomorrow.toLocaleString()}`);
-  console.log('Note: Cleanup skipped on startup to preserve Firestore quota');
+  */
 }
 
 app.listen(PORT, async () => {

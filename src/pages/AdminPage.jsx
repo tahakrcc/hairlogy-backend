@@ -145,13 +145,17 @@ function AdminPage() {
         setToast({ message: 'Giriş başarısız: Geçersiz yanıt alındı.', type: 'error' })
       }
     } catch (error) {
-      console.error('Login error:', error)
-      console.error('Error details:', {
+      // Safely log error without string conversion issues
+      const errorInfo = {
         status: error.response?.status,
+        statusText: error.response?.statusText,
         data: error.response?.data,
-        message: error.message,
-        code: error.code
-      })
+        message: error.message || String(error),
+        code: error.code,
+        url: error.config?.url,
+        method: error.config?.method
+      }
+      console.error('Login error details:', errorInfo)
       
       // Hata mesajını belirle
       let errorMessage = 'Giriş başarısız'

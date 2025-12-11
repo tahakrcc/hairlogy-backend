@@ -321,15 +321,34 @@ app.get('/api/available-times', async (req, res) => {
     const barberIdNum = parseInt(barberId, 10);
     const barberIdStr = String(barberId);
 
-    // Get ALL bookings and filter in memory (most reliable approach)
-    // This avoids any index or type issues
-    const allBookingsSnapshot = await db.collection('bookings').get();
+    // Optimize: Query by date first to reduce Firestore reads (quota optimization)
+    // This significantly reduces the number of documents read from Firestore
+    let bookingsSnapshot;
+    try {
+      // Query by appointment_date first (most selective filter, no index needed)
+      // Filter status and barber_id in memory to avoid index requirements
+      bookingsSnapshot = await db.collection('bookings')
+        .where('appointment_date', '==', date)
+        .get();
+    } catch (error) {
+      // If query fails, fall back to getting all (should rarely happen)
+      console.error('Date query failed:', error.message);
+      return res.status(500).json({ 
+        error: 'Veritabanı sorgusu başarısız oldu. Lütfen daha sonra tekrar deneyin.',
+        details: error.message 
+      });
+    }
     
-    // Filter in memory for barber_id, appointment_date and status
+    // Filter in memory for barber_id and status (date already filtered by query)
     const bookedTimes = [];
     
-    allBookingsSnapshot.forEach(doc => {
+    bookingsSnapshot.forEach(doc => {
       const data = doc.data();
+      
+      // Skip cancelled bookings
+      if (data.status === 'cancelled') {
+        return;
+      }
       
       // Check barber_id (try both number and string)
       const dataBarberId = data.barber_id;
@@ -339,16 +358,11 @@ app.get('/api/available-times', async (req, res) => {
                            String(dataBarberId) === barberIdStr ||
                            Number(dataBarberId) === barberIdNum;
       
-      if (matchesBarber) {
-        // Check date and status
-        if (data.appointment_date === date && 
-            data.status !== 'cancelled' && 
-            data.appointment_time) {
-          // Ensure time is a string and trim it
-          const time = String(data.appointment_time).trim();
-          if (time && !bookedTimes.includes(time)) {
-            bookedTimes.push(time);
-          }
+      if (matchesBarber && data.appointment_time) {
+        // Ensure time is a string and trim it
+        const time = String(data.appointment_time).trim();
+        if (time && !bookedTimes.includes(time)) {
+          bookedTimes.push(time);
         }
       }
     });

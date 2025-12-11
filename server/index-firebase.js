@@ -65,8 +65,22 @@ app.get('/api/email-config', (req, res) => {
 // Auto-confirm pending bookings (for old bookings that were created before auto-confirm)
 async function autoConfirmPendingBookings() {
   try {
+    // Only check if there are any pending bookings (limit 1 to save quota)
+    // If quota is exceeded, skip this operation
+    const pendingCheck = await db.collection('bookings')
+      .where('status', '==', 'pending')
+      .limit(1)
+      .get();
+
+    if (pendingCheck.empty) {
+      return;
+    }
+
+    // Only process a limited number to avoid quota issues
+    // Process in batches of 50 max
     const pendingBookings = await db.collection('bookings')
       .where('status', '==', 'pending')
+      .limit(50)
       .get();
 
     if (pendingBookings.empty) {
@@ -89,6 +103,11 @@ async function autoConfirmPendingBookings() {
       console.log(`Auto-confirmed ${count} pending bookings`);
     }
   } catch (error) {
+    // If quota exceeded, just log and continue (don't crash server)
+    if (error.message && error.message.includes('Quota exceeded')) {
+      console.warn('Skipping auto-confirm due to quota limit');
+      return;
+    }
     console.error('Error auto-confirming pending bookings:', error);
   }
 }
@@ -130,23 +149,56 @@ async function initializeDatabase() {
     }
 
     // Check if admin users exist, if not create them
-    const adminUsersSnapshot = await db.collection('admin_users').get();
+    // Optimize: Query specific users instead of getting all
+    let yasinDoc = null;
+    let emirDoc = null;
+    const adminDocs = [];
+    
+    try {
+      // Try to get specific users first (more efficient)
+      const yasinQuery = await db.collection('admin_users')
+        .where('username', '==', 'yasin')
+        .limit(1)
+        .get();
+      if (!yasinQuery.empty) {
+        yasinDoc = yasinQuery.docs[0];
+      }
+
+      const emirQuery = await db.collection('admin_users')
+        .where('username', '==', 'emir')
+        .limit(1)
+        .get();
+      if (!emirQuery.empty) {
+        emirDoc = emirQuery.docs[0];
+      }
+
+      // Check for legacy admin user (only if needed)
+      const adminQuery = await db.collection('admin_users')
+        .where('username', '==', 'admin')
+        .get();
+      adminQuery.forEach(doc => {
+        adminDocs.push(doc);
+      });
+    } catch (error) {
+      // If quota exceeded or query fails, fall back to getting all (should rarely happen)
+      if (error.message && error.message.includes('Quota exceeded')) {
+        console.warn('Skipping admin user check due to quota limit');
+        return; // Skip admin user initialization if quota exceeded
+      }
+      // Fallback: get all (only if query fails for other reasons)
+      const adminUsersSnapshot = await db.collection('admin_users').get();
+      adminUsersSnapshot.forEach(doc => {
+        const user = doc.data();
+        if (user.username?.toLowerCase() === 'yasin') yasinDoc = doc;
+        if (user.username?.toLowerCase() === 'emir') emirDoc = doc;
+        if (user.username?.toLowerCase() === 'admin') adminDocs.push(doc);
+      });
+    }
     
     // Upsert yasin/emir with stronger passwords, remove legacy "admin"
     const yasinHash = bcrypt.hashSync('Yasin@2025!', 10);
     const emirHash = bcrypt.hashSync('Emir@2025!', 10);
     const ops = [];
-    
-    let yasinDoc = null;
-    let emirDoc = null;
-    const adminDocs = [];
-    
-    adminUsersSnapshot.forEach(doc => {
-      const user = doc.data();
-      if (user.username?.toLowerCase() === 'yasin') yasinDoc = doc;
-      if (user.username?.toLowerCase() === 'emir') emirDoc = doc;
-      if (user.username?.toLowerCase() === 'admin') adminDocs.push(doc);
-    });
     
     if (yasinDoc) {
       ops.push(yasinDoc.ref.update({ password: yasinHash, barber_id: 1 }));
@@ -1486,12 +1538,18 @@ app.listen(PORT, async () => {
   console.log('Using Firebase Firestore database');
   
   // Initialize database on startup
+  // If quota exceeded, skip initialization (server will still work)
   try {
     await initializeDatabase();
     console.log('Database initialization completed');
   } catch (error) {
-    console.error('Database initialization failed:', error);
-    console.error('Server will continue but some features may not work');
+    if (error.message && error.message.includes('Quota exceeded')) {
+      console.warn('Database initialization skipped due to quota limit. Server will continue.');
+      console.warn('Quota will reset at midnight UTC. Server functionality may be limited until then.');
+    } else {
+      console.error('Database initialization failed:', error);
+      console.error('Server will continue but some features may not work');
+    }
   }
 
   // Schedule cleanup of old bookings

@@ -9,7 +9,7 @@ const barbers = [
   {
     id: 1,
     name: 'Hıdır Yasin Gökçeoğlu',
-    image: '/WhatsApp%20Image%202025-12-09%20at%2000.46.04.jpeg',
+    image: '/yasin-new.jpg',
     instagram: 'https://www.instagram.com/hairology_yasin?igsh=eWZlN3c4emF2bTRu&utm_source=qr',
     tiktok: 'https://www.tiktok.com/@hidir_yasin?_r=1&_t=ZS-9281Gzsz8VQ',
     youtube: 'https://youtube.com/@hdrgokceoglu5095?si=lL8J2m-HA_r6tK1H'
@@ -32,11 +32,11 @@ const services = [
 ]
 
 const galleryImages = [
-  { id: 1, image: '/WhatsApp%20Image%202025-12-09%20at%2000.46.04.jpeg', title: 'Modern Kesim' },
+  { id: 1, image: '/yasin-new.jpg', title: 'Modern Kesim' },
   { id: 2, image: '/WhatsApp%20Image%202025-12-09%20at%2012.00.59.jpeg', title: 'Fade Tasarımı' },
-  { id: 3, image: '/WhatsApp%20Image%202025-12-09%20at%2000.46.04.jpeg', title: 'Klasik Tıraş' },
+  { id: 3, image: '/yasin-new.jpg', title: 'Klasik Tıraş' },
   { id: 4, image: '/WhatsApp%20Image%202025-12-09%20at%2012.00.59.jpeg', title: 'Sakal Tasarımı' },
-  { id: 5, image: '/WhatsApp%20Image%202025-12-09%20at%2000.46.04.jpeg', title: 'Premium Hizmet' },
+  { id: 5, image: '/yasin-new.jpg', title: 'Premium Hizmet' },
   { id: 6, image: '/WhatsApp%20Image%202025-12-09%20at%2012.00.59.jpeg', title: 'Özel Kesim' }
 ]
 
@@ -107,7 +107,7 @@ function HomePage() {
   }, [lastScrollY])
 
   const handleWhatsAppClick = () => {
-    const phoneNumber = '905551234567'
+    const phoneNumber = '905418938744' // Updated WhatsApp number
     const message = encodeURIComponent(t('whatsapp.message'))
     window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank')
   }

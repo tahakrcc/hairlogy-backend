@@ -649,14 +649,48 @@ app.post('/api/admin/login', async (req, res) => {
     }
 
     // Case-insensitive username lookup
-    const snapshot = await db.collection('admin_users')
-      .get();
+    // Try exact match first (most common case, saves quota)
+    let userDoc = null;
+    let snapshot;
     
-    // Filter in memory for case-insensitive match
-    const userDoc = snapshot.docs.find(doc => {
-      const userData = doc.data();
-      return userData.username && userData.username.toLowerCase() === username.toLowerCase();
-    });
+    try {
+      // First try exact username match (case-sensitive, but faster)
+      snapshot = await db.collection('admin_users')
+        .where('username', '==', username)
+        .limit(1)
+        .get();
+      
+      if (!snapshot.empty) {
+        userDoc = snapshot.docs[0];
+      } else {
+        // If exact match fails, try lowercase version
+        // (assuming username might be stored in lowercase)
+        snapshot = await db.collection('admin_users')
+          .where('username', '==', username.toLowerCase())
+          .limit(1)
+          .get();
+        
+        if (!snapshot.empty) {
+          userDoc = snapshot.docs[0];
+        } else {
+          // Last resort: get all and filter (only if username format is inconsistent)
+          // This should rarely happen if usernames are stored consistently
+          snapshot = await db.collection('admin_users').get();
+          userDoc = snapshot.docs.find(doc => {
+            const userData = doc.data();
+            return userData.username && userData.username.toLowerCase() === username.toLowerCase();
+          }) || null;
+        }
+      }
+    } catch (error) {
+      // If query fails, fall back to getting all (should rarely happen)
+      console.error('Admin user query failed:', error.message);
+      snapshot = await db.collection('admin_users').get();
+      userDoc = snapshot.docs.find(doc => {
+        const userData = doc.data();
+        return userData.username && userData.username.toLowerCase() === username.toLowerCase();
+      }) || null;
+    }
 
     if (!userDoc) {
       return res.status(401).json({ error: 'Invalid credentials' });

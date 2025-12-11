@@ -11,6 +11,20 @@ services:
         value: production
       - key: PORT
         value: 10000
+      - key: FIREBASE_PROJECT_ID
+        value: kuafor-tk # kendi Firebase proje ID'nizi yazın
+      - key: FIREBASE_SERVICE_ACCOUNT_PATH
+        value: ./serviceAccountKey.json
+      - key: MAILJET_API_KEY
+        sync: 7418d0bd58c88684f714823bc10dfe71
+      - key: MAILJET_API_SECRET
+        sync: 6b6a9d38d193960134a4c95d31a8e174
+      - key: FROM_EMAIL
+        value: noreply@hairologyyasinpremiumrandevu.com
+      - key: FROM_NAME
+        value: Hairlogy Yasin Premium
+      - key: ADMIN_EMAIL
+        value: harirolgyyasin@gmail.com
       - key: JWT_SECRET
         generateValue: true
       # Firebase Service Account Key'i environment variable olarak ekleyin

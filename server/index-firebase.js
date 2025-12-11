@@ -108,40 +108,54 @@ async function initializeDatabase() {
     // Check if admin users exist, if not create them
     const adminUsersSnapshot = await db.collection('admin_users').get();
     
-    // Check if yasin and emir exist
-    let yasinExists = false;
-    let emirExists = false;
+    // Upsert yasin/emir with stronger passwords, remove legacy "admin"
+    const yasinHash = bcrypt.hashSync('Yasin@2025!', 10);
+    const emirHash = bcrypt.hashSync('Emir@2025!', 10);
+    const ops = [];
+    
+    let yasinDoc = null;
+    let emirDoc = null;
+    const adminDocs = [];
     
     adminUsersSnapshot.forEach(doc => {
       const user = doc.data();
-      if (user.username === 'yasin') yasinExists = true;
-      if (user.username === 'emir') emirExists = true;
+      if (user.username?.toLowerCase() === 'yasin') yasinDoc = doc;
+      if (user.username?.toLowerCase() === 'emir') emirDoc = doc;
+      if (user.username?.toLowerCase() === 'admin') adminDocs.push(doc);
     });
     
-    // Create missing users
-    if (!yasinExists) {
-      await db.collection('admin_users').add({
+    if (yasinDoc) {
+      ops.push(yasinDoc.ref.update({ password: yasinHash, barber_id: 1 }));
+      console.log('Admin user updated: yasin (password reset)');
+    } else {
+      ops.push(db.collection('admin_users').add({
         username: 'yasin',
-        password: bcrypt.hashSync('Yasin@2025!', 10),
-        barber_id: 1, // Hıdır Yasin Gökçeoğlu
+        password: yasinHash,
+        barber_id: 1,
         created_at: FieldValue.serverTimestamp()
-      });
+      }));
       console.log('Admin user created: yasin/Yasin@2025! (barber_id: 1)');
     }
     
-    if (!emirExists) {
-      await db.collection('admin_users').add({
+    if (emirDoc) {
+      ops.push(emirDoc.ref.update({ password: emirHash, barber_id: 2 }));
+      console.log('Admin user updated: emir (password reset)');
+    } else {
+      ops.push(db.collection('admin_users').add({
         username: 'emir',
-        password: bcrypt.hashSync('Emir@2025!', 10),
-        barber_id: 2, // Emir Gökçeoğlu
+        password: emirHash,
+        barber_id: 2,
         created_at: FieldValue.serverTimestamp()
-      });
+      }));
       console.log('Admin user created: emir/Emir@2025! (barber_id: 2)');
     }
     
-    if (yasinExists && emirExists) {
-      console.log('Admin users already exist (yasin and emir)');
+    if (adminDocs.length > 0) {
+      adminDocs.forEach(doc => ops.push(doc.ref.delete()));
+      console.log(`Removed legacy admin user count: ${adminDocs.length}`);
     }
+    
+    await Promise.all(ops);
 
     // Check if services exist
     const servicesSnapshot = await db.collection('services').limit(1).get();
@@ -164,16 +178,7 @@ async function initializeDatabase() {
     }
 
     // Check if admin exists
-    const adminSnapshot = await db.collection('admin_users').where('username', '==', 'admin').limit(1).get();
-    if (adminSnapshot.empty) {
-      const hashedPassword = bcrypt.hashSync('Admin@2025!', 10);
-      await db.collection('admin_users').add({
-        username: 'admin',
-        password: hashedPassword,
-        created_at: FieldValue.serverTimestamp()
-      });
-      console.log('Default admin created: username=admin, password=Admin@2025!');
-    }
+    // No default "admin" user is created anymore
   } catch (error) {
     console.error('Database initialization error:', error);
   }

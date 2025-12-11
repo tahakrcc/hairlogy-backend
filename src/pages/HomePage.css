@@ -2106,42 +2106,48 @@
   
   .social-sidebar {
     top: auto;
-    bottom: 80px;
+    bottom: 78px;
+    right: 10px;
     transform: none;
+    width: 180px;
+    border-radius: 14px;
   }
   
   .social-sidebar:not(.open) {
-    right: -180px;
+    right: -170px;
   }
   
   .social-sidebar-content {
-    padding: 16px 12px;
-    gap: 12px;
-    min-width: 180px;
+    padding: 14px 12px;
+    gap: 10px;
+    min-width: 0;
+    width: 100%;
+    border-radius: 14px 0 0 14px;
+    box-shadow: -4px 0 14px rgba(0, 0, 0, 0.35);
   }
   
   .social-sidebar-header h3 {
-    font-size: 16px;
+    font-size: 15px;
   }
   
   .social-sidebar-link {
-    padding: 10px 12px;
+    padding: 9px 12px;
     min-width: 0;
     width: 100%;
+    border-radius: 10px;
   }
   
   .social-sidebar-link span {
     font-size: 13px;
-    max-width: 140px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    max-width: 999px;
   }
   
   .social-sidebar-toggle {
-    left: -50px;
-    width: 50px;
-    height: 90px;
+    left: -44px;
+    width: 44px;
+    height: 78px;
+    border-radius: 12px 0 0 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   }
   
   .social-toggle-content {
@@ -2149,13 +2155,13 @@
   }
   
   .social-toggle-btn {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
   }
   
   .social-toggle-btn svg {
-    width: 16px;
-    height: 16px;
+    width: 15px;
+    height: 15px;
   }
 }
 
@@ -2173,17 +2179,19 @@
   }
   
   .social-sidebar {
-    bottom: 70px;
+    bottom: 66px;
+    right: 8px;
   }
   
   .social-sidebar:not(.open) {
-    right: -160px;
+    right: -150px;
   }
   
   .social-sidebar-content {
     padding: 12px 10px;
     gap: 10px;
-    min-width: 160px;
+    width: 170px;
+    min-width: 0;
   }
   
   .social-sidebar-header h3 {
@@ -2195,6 +2203,7 @@
     padding: 8px 10px;
     min-width: 0;
     width: 100%;
+    border-radius: 10px;
   }
   
   .social-sidebar-link svg {
@@ -2204,16 +2213,14 @@
   
   .social-sidebar-link span {
     font-size: 12px;
-    max-width: 120px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    max-width: 999px;
   }
   
   .social-sidebar-toggle {
-    left: -45px;
-    width: 45px;
-    height: 80px;
+    left: -40px;
+    width: 42px;
+    height: 74px;
+    border-radius: 12px 0 0 12px;
   }
   
   .social-toggle-content {

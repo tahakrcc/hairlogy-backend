@@ -2106,50 +2106,56 @@
   
   .social-sidebar {
     top: auto;
-    bottom: 78px;
-    right: 10px;
-    transform: none;
-    width: 72px; /* compact icon rail */
-    border-radius: 18px;
+    bottom: 74px;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, 0);
+    width: auto;
+    border-radius: 16px;
   }
   
   .social-sidebar:not(.open) {
-    right: -62px;
+    right: auto;
+    transform: translate(-50%, 0);
   }
   
   .social-sidebar-content {
-    padding: 10px 10px;
-    gap: 8px;
+    flex-direction: row;
+    align-items: center;
+    padding: 10px 12px;
+    gap: 10px;
     min-width: 0;
     width: auto;
-    border-radius: 18px 0 0 18px;
-    box-shadow: -4px 0 14px rgba(0, 0, 0, 0.3);
+    border-radius: 999px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
   }
   
   .social-sidebar-header h3 {
-    display: none; /* hide heading on mobile for cleaner look */
+    display: none;
   }
   
   .social-sidebar-link {
-    padding: 0;
+    padding: 8px 12px;
     min-width: 0;
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
+    width: auto;
+    height: auto;
+    border-radius: 999px;
     justify-content: center;
     box-shadow: none;
+    gap: 8px;
   }
   
   .social-sidebar-link span {
-    display: none; /* show only icons on mobile */
+    display: inline-block;
+    font-size: 12px;
+    max-width: 80px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   
   .social-sidebar-toggle {
-    left: -42px;
-    width: 42px;
-    height: 74px;
-    border-radius: 12px 0 0 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    display: none;
   }
   
   .social-toggle-content {
@@ -2181,21 +2187,24 @@
   }
   
   .social-sidebar {
-    bottom: 66px;
-    right: 8px;
-    width: 68px;
+    bottom: 64px;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, 0);
+    width: auto;
   }
   
   .social-sidebar:not(.open) {
-    right: -60px;
+    right: auto;
+    transform: translate(-50%, 0);
   }
   
   .social-sidebar-content {
-    padding: 10px 10px;
+    padding: 9px 10px;
     gap: 8px;
     width: auto;
     min-width: 0;
-    border-radius: 16px 0 0 16px;
+    border-radius: 999px;
   }
   
   .social-sidebar-header h3 {
@@ -2203,27 +2212,28 @@
   }
   
   .social-sidebar-link {
-    padding: 0;
+    padding: 7px 10px;
     min-width: 0;
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
+    width: auto;
+    height: auto;
+    border-radius: 999px;
   }
   
   .social-sidebar-link svg {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
   }
   
   .social-sidebar-link span {
-    display: none;
+    font-size: 11px;
+    max-width: 70px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   
   .social-sidebar-toggle {
-    left: -38px;
-    width: 38px;
-    height: 68px;
-    border-radius: 12px 0 0 12px;
+    display: none;
   }
   
   .social-toggle-content {

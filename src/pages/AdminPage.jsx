@@ -16,6 +16,7 @@ const statusConfig = {
 function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [loginLoading, setLoginLoading] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
   const [bookings, setBookings] = useState([])
   const [stats, setStats] = useState(null)
@@ -114,8 +115,14 @@ function AdminPage() {
   const handleLogin = async (e) => {
     e.preventDefault()
     
+    // Form validasyonu
+    if (!loginForm.username || !loginForm.password) {
+      setToast({ message: 'Lütfen kullanıcı adı ve şifre girin.', type: 'error' })
+      return
+    }
+    
     // Loading state ekle
-    setLoading(true)
+    setLoginLoading(true)
     
     try {
       const response = await adminAPI.login(loginForm.username, loginForm.password)
@@ -132,25 +139,48 @@ function AdminPage() {
         setCurrentUser(response.data.username)
         setIsAuthenticated(true)
         setToast({ message: 'Giriş başarılı!', type: 'success' })
+        // Form'u temizle
+        setLoginForm({ username: '', password: '' })
       } else {
         setToast({ message: 'Giriş başarısız: Geçersiz yanıt alındı.', type: 'error' })
       }
     } catch (error) {
       console.error('Login error:', error)
+      console.error('Error details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+        code: error.code
+      })
       
-      const errorMessage = error.response?.data?.error || error.message || 'Giriş başarısız'
+      // Hata mesajını belirle
+      let errorMessage = 'Giriş başarısız'
       const errorStatus = error.response?.status
+      const errorData = error.response?.data
       const requestUrl = error.config?.url || 'unknown'
 
+      // Backend'den gelen hata mesajını al
+      if (errorData) {
+        if (typeof errorData === 'string') {
+          errorMessage = errorData
+        } else if (errorData.error) {
+          errorMessage = errorData.error
+        } else if (errorData.message) {
+          errorMessage = errorData.message
+        }
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+
       // CORS hatası kontrolü
-      if (error.message?.includes('CORS') || error.message?.includes('Access-Control-Allow-Origin')) {
+      if (error.message?.includes('CORS') || error.message?.includes('Access-Control-Allow-Origin') || error.message?.includes('blocked by CORS')) {
         setToast({ 
           message: 'CORS hatası: Backend CORS ayarlarını kontrol edin. Backend\'in frontend domain\'ini allow list\'ine eklemesi gerekiyor.', 
           type: 'error' 
         })
       } 
       // Network hatası
-      else if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error') || error.code === 'ERR_NETWORK') {
+      else if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error') || error.code === 'ERR_NETWORK' || error.message?.includes('Failed to fetch')) {
         if (requestUrl.includes('your-backend-url.com')) {
           setToast({ 
             message: 'Backend URL yapılandırılmamış! Netlify Dashboard\'dan VITE_API_URL environment variable\'ını ekleyin.', 
@@ -163,20 +193,45 @@ function AdminPage() {
           })
         }
       } 
-      // 401 Unauthorized
+      // 401 Unauthorized - Kullanıcı adı veya şifre hatalı
       else if (errorStatus === 401) {
-        setToast({ message: 'Kullanıcı adı veya şifre hatalı.', type: 'error' })
+        setToast({ 
+          message: 'Kullanıcı adı veya şifre hatalı. Lütfen tekrar deneyin.', 
+          type: 'error' 
+        })
+        // Şifreyi temizle
+        setLoginForm(prev => ({ ...prev, password: '' }))
       } 
+      // 400 Bad Request
+      else if (errorStatus === 400) {
+        setToast({ 
+          message: errorMessage || 'Kullanıcı adı ve şifre gereklidir.', 
+          type: 'error' 
+        })
+      }
       // 429 Too Many Requests
       else if (errorStatus === 429) {
-        setToast({ message: errorMessage, type: 'error' })
+        setToast({ 
+          message: errorMessage || 'Çok fazla deneme yapıldı. Lütfen birkaç dakika sonra tekrar deneyin.', 
+          type: 'error' 
+        })
       } 
+      // 500 Server Error
+      else if (errorStatus === 500) {
+        setToast({ 
+          message: 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.', 
+          type: 'error' 
+        })
+      }
       // Diğer hatalar
       else {
-        setToast({ message: `Giriş hatası: ${errorMessage}`, type: 'error' })
+        setToast({ 
+          message: `Giriş hatası: ${errorMessage}`, 
+          type: 'error' 
+        })
       }
     } finally {
-      setLoading(false)
+      setLoginLoading(false)
     }
   }
 
@@ -417,7 +472,13 @@ function AdminPage() {
                 </button>
               </div>
             </div>
-            <button type="submit" className="login-btn">Giriş Yap</button>
+            <button 
+              type="submit" 
+              className="login-btn" 
+              disabled={loginLoading}
+            >
+              {loginLoading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
+            </button>
           </form>
         </div>
       </div>

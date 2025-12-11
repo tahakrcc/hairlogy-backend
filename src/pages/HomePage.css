@@ -2131,6 +2131,10 @@
     align-items: center;
     padding: 10px 12px;
     gap: 8px;
+    row-gap: 6px;
+    flex-wrap: wrap;
+    max-width: 260px;
+    justify-content: flex-start;
     min-width: 0;
     width: auto;
     border-radius: 14px;
@@ -2154,6 +2158,7 @@
     justify-content: center;
     box-shadow: none;
     gap: 6px;
+    flex: 0 0 auto;
   }
   
   .social-sidebar-link span {
@@ -2225,6 +2230,9 @@
   .social-sidebar-content {
     padding: 8px 10px;
     gap: 6px;
+    row-gap: 6px;
+    flex-wrap: wrap;
+    max-width: 220px;
     width: auto;
     min-width: 0;
     border-radius: 14px;
@@ -2240,6 +2248,7 @@
     width: auto;
     height: auto;
     border-radius: 12px;
+    flex: 0 0 auto;
   }
   
   .social-sidebar-link svg {

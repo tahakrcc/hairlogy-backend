@@ -45,6 +45,26 @@ Key: FIREBASE_CLIENT_EMAIL
 Value: [Firebase client email]
 ```
 
+### Mailjet Email Service (Email gönderimi için):
+```
+Key: MAILJET_API_KEY
+Value: [Mailjet dashboard'dan aldığınız API Key]
+
+Key: MAILJET_API_SECRET
+Value: [Mailjet dashboard'dan aldığınız Secret Key]
+
+Key: ADMIN_EMAIL
+Value: [Yeni randevu bildirimlerinin gönderileceği admin email adresi]
+Örnek: admin@hairologyyasinpremiumrandevu.com
+
+Key: FROM_EMAIL
+Value: [Mailjet'te doğrulanmış gönderen email adresi]
+Örnek: noreply@hairologyyasinpremiumrandevu.com
+
+Key: FROM_NAME
+Value: Hairlogy Yasin Premium
+```
+
 ### Diğer Environment Variables:
 ```
 Key: NODE_ENV
@@ -65,6 +85,25 @@ Value: [Güçlü bir secret key - örn: openssl rand -base64 32]
 4. "Generate new private key" butonuna tıklayın
 5. İndirilen JSON dosyasını açın
 6. Tüm içeriği kopyalayın ve Render'da `FIREBASE_SERVICE_ACCOUNT_KEY` olarak yapıştırın
+
+## 4.1. Mailjet API Key ve Secret Key Nasıl Alınır?
+
+1. [Mailjet Dashboard](https://app.mailjet.com/) → Giriş yapın
+2. Sol menüden **Account Settings** > **API Keys** seçin
+3. **Create API Key** butonuna tıklayın (veya mevcut key'i kullanın)
+4. **API Key** ve **Secret Key**'i kopyalayın
+   - ⚠️ **Secret Key sadece bir kez gösterilir!** Kopyaladığınızdan emin olun
+5. Render'da environment variables olarak ekleyin:
+   - `MAILJET_API_KEY` = API Key
+   - `MAILJET_API_SECRET` = Secret Key
+
+### Mailjet Sender Email Doğrulama (ÖNEMLİ!)
+
+1. Mailjet Dashboard > **Senders & Domain** > **Senders** sekmesine gidin
+2. **Add Sender** butonuna tıklayın
+3. `FROM_EMAIL` olarak kullanacağınız email adresini girin
+4. Email adresinize gelen doğrulama linkine tıklayın
+5. Email doğrulandıktan sonra kullanabilirsiniz
 
 ## 5. Deploy
 

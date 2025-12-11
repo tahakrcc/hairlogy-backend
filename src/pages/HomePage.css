@@ -2106,28 +2106,39 @@
   
   .social-sidebar {
     top: auto;
-    bottom: 74px;
-    left: 50%;
-    right: auto;
-    transform: translate(-50%, 0);
+    bottom: 82px;
+    left: auto;
+    right: 16px;
+    transform: none;
     width: auto;
     border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
   }
   
   .social-sidebar:not(.open) {
-    right: auto;
-    transform: translate(-50%, 0);
+    right: 16px;
+    transform: none;
   }
   
   .social-sidebar-content {
+    display: none;
+    position: absolute;
+    bottom: 70px;
+    right: 0;
     flex-direction: row;
     align-items: center;
     padding: 10px 12px;
-    gap: 10px;
+    gap: 8px;
     min-width: 0;
     width: auto;
-    border-radius: 999px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    border-radius: 14px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  .social-sidebar.open .social-sidebar-content {
+    display: flex;
   }
   
   .social-sidebar-header h3 {
@@ -2135,27 +2146,40 @@
   }
   
   .social-sidebar-link {
-    padding: 8px 12px;
+    padding: 8px 10px;
     min-width: 0;
     width: auto;
     height: auto;
-    border-radius: 999px;
+    border-radius: 12px;
     justify-content: center;
     box-shadow: none;
-    gap: 8px;
+    gap: 6px;
   }
   
   .social-sidebar-link span {
     display: inline-block;
     font-size: 12px;
-    max-width: 80px;
+    max-width: 90px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   
   .social-sidebar-toggle {
-    display: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 14px;
+    min-width: 0;
+    height: 52px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #25D366 0%, #1ebe5c 100%);
+    color: #0b1b10;
+    font-weight: 700;
+    border: none;
+    box-shadow: 0 8px 18px rgba(37, 211, 102, 0.35);
+    cursor: pointer;
   }
   
   .social-toggle-content {
@@ -2188,23 +2212,22 @@
   
   .social-sidebar {
     bottom: 64px;
-    left: 50%;
-    right: auto;
-    transform: translate(-50%, 0);
+    right: 12px;
+    transform: none;
     width: auto;
   }
   
   .social-sidebar:not(.open) {
-    right: auto;
-    transform: translate(-50%, 0);
+    right: 12px;
+    transform: none;
   }
   
   .social-sidebar-content {
-    padding: 9px 10px;
-    gap: 8px;
+    padding: 8px 10px;
+    gap: 6px;
     width: auto;
     min-width: 0;
-    border-radius: 999px;
+    border-radius: 14px;
   }
   
   .social-sidebar-header h3 {
@@ -2212,16 +2235,16 @@
   }
   
   .social-sidebar-link {
-    padding: 7px 10px;
+    padding: 7px 9px;
     min-width: 0;
     width: auto;
     height: auto;
-    border-radius: 999px;
+    border-radius: 12px;
   }
   
   .social-sidebar-link svg {
-    width: 16px;
-    height: 16px;
+    width: 15px;
+    height: 15px;
   }
   
   .social-sidebar-link span {
@@ -2233,7 +2256,20 @@
   }
   
   .social-sidebar-toggle {
-    display: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 48px;
+    padding: 0 12px;
+    font-size: 13px;
+    background: linear-gradient(135deg, #25D366 0%, #1ebe5c 100%);
+    color: #0b1b10;
+    font-weight: 700;
+    border: none;
+    border-radius: 999px;
+    box-shadow: 0 8px 18px rgba(37, 211, 102, 0.35);
+    cursor: pointer;
   }
   
   .social-toggle-content {

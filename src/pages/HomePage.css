@@ -736,6 +736,13 @@
   .barber-showcase-content {
     padding: 32px;
   }
+
+  /* Move CTA button to the right on mobile to avoid overlapping the image */
+  .barber-showcase-content .golden-button {
+    display: inline-flex;
+    margin-left: auto;
+    margin-right: 0;
+  }
   
   .barber-showcase-name {
     font-size: 32px;

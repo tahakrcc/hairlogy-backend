@@ -18,8 +18,8 @@ const barbers = [
     id: 2,
     name: 'Emir Gökçeoğlu',
     image: '/WhatsApp%20Image%202025-12-09%20at%2012.00.59.jpeg',
-    instagram: 'https://www.instagram.com/emir',
-    tiktok: 'https://www.tiktok.com/@emir'
+    instagram: 'https://www.instagram.com/emirgokceoglu1?igsh=YjBjYm1tYWVheTR4',
+    tiktok: 'https://www.tiktok.com/@emirgokceoglu?_r=1&_t=ZS-9284iyXxzcq'
   }
 ]
 

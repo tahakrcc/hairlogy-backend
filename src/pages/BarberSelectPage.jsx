@@ -8,7 +8,7 @@ const barbers = [
   {
     id: 1,
     name: 'Hıdır Yasin Gökçeoğlu',
-    image: '/WhatsApp%20Image%202025-12-09%20at%2000.46.04.jpeg',
+    image: '/yasin-new.jpg',
     experience: '7 Yıl Deneyim',
     instagram: 'https://www.instagram.com/hairology_yasin?igsh=eWZlN3c4emF2bTRu&utm_source=qr',
     tiktok: 'https://www.tiktok.com/@hidir_yasin?_r=1&_t=ZS-9281Gzsz8VQ',
@@ -19,8 +19,8 @@ const barbers = [
     name: 'Emir Gökçeoğlu',
     image: '/WhatsApp%20Image%202025-12-09%20at%2012.00.59.jpeg',
     experience: '2 Yıl Deneyim',
-    instagram: 'https://www.instagram.com/emir',
-    tiktok: 'https://www.tiktok.com/@emir'
+    instagram: 'https://www.instagram.com/emirgokceoglu1?igsh=YjBjYm1tYWVheTR4',
+    tiktok: 'https://www.tiktok.com/@emirgokceoglu?_r=1&_t=ZS-9284iyXxzcq'
   }
 ]
 

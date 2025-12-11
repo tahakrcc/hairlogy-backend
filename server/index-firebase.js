@@ -327,11 +327,8 @@ app.get('/api/available-times', async (req, res) => {
     
     // Filter in memory for barber_id, appointment_date and status
     const bookedTimes = [];
-    let totalBookings = 0;
-    let matchingBookings = 0;
     
     allBookingsSnapshot.forEach(doc => {
-      totalBookings++;
       const data = doc.data();
       
       // Check barber_id (try both number and string)
@@ -343,8 +340,6 @@ app.get('/api/available-times', async (req, res) => {
                            Number(dataBarberId) === barberIdNum;
       
       if (matchesBarber) {
-        matchingBookings++;
-        
         // Check date and status
         if (data.appointment_date === date && 
             data.status !== 'cancelled' && 
@@ -357,9 +352,6 @@ app.get('/api/available-times', async (req, res) => {
         }
       }
     });
-    
-    console.log(`[Available Times] Date: ${date}, BarberId: ${barberId} (num: ${barberIdNum}, str: ${barberIdStr})`);
-    console.log(`[Available Times] Total bookings in DB: ${totalBookings}, Matching barber: ${matchingBookings}, Booked times: ${bookedTimes.length}`, bookedTimes);
     
     // All possible time slots (10:00 - 20:00, hourly)
     // Note: 16:00 is break time (yemek molası), 17:00 is active
@@ -380,7 +372,6 @@ app.get('/api/available-times', async (req, res) => {
       return !breakTimeSlots.includes(normalizedTime) && !normalizedBookedTimes.includes(normalizedTime);
     });
     
-    console.log(`[Available Times] Returning: ${availableTimes.length} available, ${bookedTimes.length} booked`);
     res.json({ availableTimes, bookedTimes });
   } catch (error) {
     console.error('Error fetching available times:', error);
@@ -549,8 +540,6 @@ app.post('/api/bookings', async (req, res) => {
     });
 
     // Müşteriye ve admin'e mail gönder (asenkron, hata olsa bile randevu oluşturulur)
-    console.log('📧 Email gönderimi başlatılıyor...');
-    
     if (customerEmail) {
       sendCustomerConfirmationEmail({
         customerName,
@@ -561,18 +550,9 @@ app.post('/api/bookings', async (req, res) => {
         servicePrice,
         appointmentDate,
         appointmentTime
-      }).then(result => {
-        if (result) {
-          console.log('✅ Müşteri maili başarıyla gönderildi');
-        } else {
-          console.warn('⚠️ Müşteri maili gönderilemedi (null döndü)');
-        }
       }).catch(error => {
-        console.error('❌ Müşteri maili gönderilirken hata (randevu yine de oluşturuldu):', error);
-        console.error('   Hata detayı:', error.message);
+        console.error('❌ Müşteri maili gönderilirken hata:', error.message);
       });
-    } else {
-      console.warn('⚠️ Müşteri email adresi yok, müşteri maili gönderilmeyecek');
     }
 
     sendAdminNotificationEmail({
@@ -584,15 +564,8 @@ app.post('/api/bookings', async (req, res) => {
       servicePrice,
       appointmentDate,
       appointmentTime
-    }).then(result => {
-      if (result) {
-        console.log('✅ Admin maili başarıyla gönderildi');
-      } else {
-        console.warn('⚠️ Admin maili gönderilemedi (null döndü)');
-      }
     }).catch(error => {
-      console.error('❌ Admin maili gönderilirken hata (randevu yine de oluşturuldu):', error);
-      console.error('   Hata detayı:', error.message);
+      console.error('❌ Admin maili gönderilirken hata:', error.message);
     });
 
     res.status(201).json({
@@ -661,8 +634,6 @@ app.post('/api/admin/login', async (req, res) => {
       return res.status(429).json({ error: 'Çok fazla deneme. Lütfen 3 dakika sonra tekrar deneyin.' });
     }
 
-    console.log(`[Admin Login] Attempting login for username: ${username}`);
-
     // Case-insensitive username lookup
     const snapshot = await db.collection('admin_users')
       .get();
@@ -674,16 +645,12 @@ app.post('/api/admin/login', async (req, res) => {
     });
 
     if (!userDoc) {
-      console.log(`[Admin Login] User not found: ${username}`);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const user = userDoc.data();
 
-    console.log(`[Admin Login] User found: ${user.username}, barber_id: ${user.barber_id || 'none'}`);
-
     if (!bcrypt.compareSync(password, user.password)) {
-      console.log(`[Admin Login] Password mismatch for user: ${username}`);
       const newCount = attempt.count + 1;
       loginAttempts[key] = {
         count: newCount,
@@ -700,8 +667,6 @@ app.post('/api/admin/login', async (req, res) => {
       username: user.username,
       barber_id: user.barber_id || null
     }, JWT_SECRET, { expiresIn: '24h' });
-    
-    console.log(`[Admin Login] Login successful for: ${user.username}`);
     
     res.json({ 
       token, 
@@ -720,8 +685,6 @@ app.get('/api/admin/bookings', verifyToken, async (req, res) => {
     const { status, barberId, date, showAll } = req.query;
     // Safely get barber_id from JWT token
     const userBarberId = req.user?.barber_id || null;
-    
-    console.log(`[Admin Bookings] Request from user: ${req.user?.username || 'unknown'}, barber_id: ${userBarberId}, showAll: ${showAll}`);
     
     let query = db.collection('bookings');
 

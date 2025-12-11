@@ -13,16 +13,15 @@ let mailjetClient = null;
 if (MAILJET_API_KEY && MAILJET_API_SECRET) {
   try {
     mailjetClient = mailjet.apiConnect(MAILJET_API_KEY, MAILJET_API_SECRET);
-    console.log('✅ Mailjet client başarıyla başlatıldı');
-    console.log(`📧 FROM_EMAIL: ${FROM_EMAIL}`);
-    console.log(`👤 ADMIN_EMAIL: ${ADMIN_EMAIL || 'AYARLANMAMIŞ!'}`);
+    // Only log once at startup
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ Mailjet client başlatıldı');
+    }
   } catch (error) {
-    console.error('❌ Mailjet client başlatılırken hata:', error);
+    console.error('❌ Mailjet client başlatılırken hata:', error.message);
   }
 } else {
-  console.warn('⚠️ Mailjet yapılandırması eksik!');
-  console.warn(`   MAILJET_API_KEY: ${MAILJET_API_KEY ? '✅ Var' : '❌ Yok'}`);
-  console.warn(`   MAILJET_API_SECRET: ${MAILJET_API_SECRET ? '✅ Var' : '❌ Yok'}`);
+  console.warn('⚠️ Mailjet yapılandırması eksik - email gönderilemeyecek');
 }
 
 /**
@@ -31,16 +30,11 @@ if (MAILJET_API_KEY && MAILJET_API_SECRET) {
  * @returns {Promise} Mailjet response
  */
 export const sendCustomerConfirmationEmail = async (bookingData) => {
-  console.log('📧 Müşteri onay maili gönderiliyor...');
-  console.log(`   Alıcı: ${bookingData.customerEmail}`);
-  
   if (!mailjetClient) {
-    console.error('❌ Mailjet yapılandırması eksik. Müşteri maili gönderilemedi.');
     return null;
   }
 
   if (!bookingData.customerEmail) {
-    console.warn('⚠️ Müşteri email adresi yok. Mail gönderilemedi.');
     return null;
   }
 
@@ -50,7 +44,6 @@ export const sendCustomerConfirmationEmail = async (bookingData) => {
   }
 
   try {
-    console.log(`📤 Mailjet'e istek gönderiliyor: ${bookingData.customerEmail}`);
     const request = mailjetClient.post('send', { version: 'v3.1' }).request({
       Messages: [
         {
@@ -150,13 +143,9 @@ export const sendCustomerConfirmationEmail = async (bookingData) => {
     });
 
     const result = await request;
-    console.log('✅ Müşteriye mail başarıyla gönderildi!');
-    console.log('   Mailjet Response:', JSON.stringify(result.body, null, 2));
     return result;
   } catch (error) {
-    console.error('❌ Müşteriye mail gönderilirken hata oluştu!');
-    console.error('   Hata detayı:', error.message);
-    console.error('   Hata stack:', error.stack);
+    console.error('❌ Müşteriye mail gönderilirken hata:', error.message);
     if (error.response) {
       console.error('   Mailjet Response:', JSON.stringify(error.response.body, null, 2));
     }
@@ -170,16 +159,12 @@ export const sendCustomerConfirmationEmail = async (bookingData) => {
  * @returns {Promise} Mailjet response
  */
 export const sendAdminNotificationEmail = async (bookingData) => {
-  console.log('📧 Admin bildirim maili gönderiliyor...');
-  console.log(`   Alıcı: ${ADMIN_EMAIL}`);
-  
   if (!mailjetClient) {
-    console.error('❌ Mailjet yapılandırması eksik. Admin maili gönderilemedi.');
     return null;
   }
 
   if (!ADMIN_EMAIL) {
-    console.error('❌ Admin email adresi (ADMIN_EMAIL) environment variable olarak ayarlanmamış.');
+    console.error('❌ ADMIN_EMAIL ayarlanmamış. Admin maili gönderilemedi.');
     return null;
   }
 
@@ -189,7 +174,6 @@ export const sendAdminNotificationEmail = async (bookingData) => {
   }
 
   try {
-    console.log(`📤 Mailjet'e istek gönderiliyor: ${ADMIN_EMAIL}`);
     const request = mailjetClient.post('send', { version: 'v3.1' }).request({
       Messages: [
         {
@@ -290,13 +274,9 @@ export const sendAdminNotificationEmail = async (bookingData) => {
     });
 
     const result = await request;
-    console.log('✅ Admin\'e mail başarıyla gönderildi!');
-    console.log('   Mailjet Response:', JSON.stringify(result.body, null, 2));
     return result;
   } catch (error) {
-    console.error('❌ Admin\'e mail gönderilirken hata oluştu!');
-    console.error('   Hata detayı:', error.message);
-    console.error('   Hata stack:', error.stack);
+    console.error('❌ Admin\'e mail gönderilirken hata:', error.message);
     if (error.response) {
       console.error('   Mailjet Response:', JSON.stringify(error.response.body, null, 2));
     }
@@ -311,12 +291,10 @@ export const sendAdminNotificationEmail = async (bookingData) => {
  */
 export const sendBookingReminderEmail = async (bookingData) => {
   if (!mailjetClient) {
-    console.warn('Mailjet yapılandırması eksik. Hatırlatma maili gönderilemedi.');
     return null;
   }
 
   if (!bookingData.customerEmail) {
-    console.warn('Müşteri email adresi yok. Hatırlatma maili gönderilemedi.');
     return null;
   }
 
@@ -417,10 +395,9 @@ export const sendBookingReminderEmail = async (bookingData) => {
     });
 
     const result = await request;
-    console.log('Hatırlatma maili gönderildi:', result.body);
     return result;
   } catch (error) {
-    console.error('Hatırlatma maili gönderilirken hata:', error);
+    console.error('❌ Hatırlatma maili gönderilirken hata:', error.message);
     return null;
   }
 };

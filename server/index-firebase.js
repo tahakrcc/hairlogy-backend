@@ -38,6 +38,30 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Email configuration diagnostic endpoint
+app.get('/api/email-config', (req, res) => {
+  const hasApiKey = !!process.env.MAILJET_API_KEY;
+  const hasApiSecret = !!process.env.MAILJET_API_SECRET;
+  const hasAdminEmail = !!process.env.ADMIN_EMAIL;
+  const fromEmail = process.env.FROM_EMAIL || 'noreply@hairologyyasinpremiumrandevu.com' || process.env.ADMIN_EMAIL;
+  
+  const config = {
+    mailjet: {
+      apiKey: hasApiKey ? '✅ Ayarlanmış' : '❌ Eksik',
+      apiSecret: hasApiSecret ? '✅ Ayarlanmış' : '❌ Eksik',
+      configured: hasApiKey && hasApiSecret
+    },
+    emails: {
+      adminEmail: process.env.ADMIN_EMAIL || '❌ Ayarlanmamış',
+      fromEmail: fromEmail || '❌ Ayarlanmamış',
+      fromName: process.env.FROM_NAME || 'Hairlogy Yasin Premium'
+    },
+    status: hasApiKey && hasApiSecret && hasAdminEmail && fromEmail ? '✅ Yapılandırılmış' : '⚠️ Eksik ayarlar var'
+  };
+  
+  res.json(config);
+});
+
 // Auto-confirm pending bookings (for old bookings that were created before auto-confirm)
 async function autoConfirmPendingBookings() {
   try {
@@ -525,6 +549,8 @@ app.post('/api/bookings', async (req, res) => {
     });
 
     // Müşteriye ve admin'e mail gönder (asenkron, hata olsa bile randevu oluşturulur)
+    console.log('📧 Email gönderimi başlatılıyor...');
+    
     if (customerEmail) {
       sendCustomerConfirmationEmail({
         customerName,
@@ -535,9 +561,18 @@ app.post('/api/bookings', async (req, res) => {
         servicePrice,
         appointmentDate,
         appointmentTime
+      }).then(result => {
+        if (result) {
+          console.log('✅ Müşteri maili başarıyla gönderildi');
+        } else {
+          console.warn('⚠️ Müşteri maili gönderilemedi (null döndü)');
+        }
       }).catch(error => {
-        console.error('Müşteri maili gönderilirken hata (randevu yine de oluşturuldu):', error);
+        console.error('❌ Müşteri maili gönderilirken hata (randevu yine de oluşturuldu):', error);
+        console.error('   Hata detayı:', error.message);
       });
+    } else {
+      console.warn('⚠️ Müşteri email adresi yok, müşteri maili gönderilmeyecek');
     }
 
     sendAdminNotificationEmail({
@@ -549,8 +584,15 @@ app.post('/api/bookings', async (req, res) => {
       servicePrice,
       appointmentDate,
       appointmentTime
+    }).then(result => {
+      if (result) {
+        console.log('✅ Admin maili başarıyla gönderildi');
+      } else {
+        console.warn('⚠️ Admin maili gönderilemedi (null döndü)');
+      }
     }).catch(error => {
-      console.error('Admin maili gönderilirken hata (randevu yine de oluşturuldu):', error);
+      console.error('❌ Admin maili gönderilirken hata (randevu yine de oluşturuldu):', error);
+      console.error('   Hata detayı:', error.message);
     });
 
     res.status(201).json({

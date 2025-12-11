@@ -567,7 +567,13 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   transition: transform 0.6s ease;
+}
+
+/* Slightly shift Yasin's photo to the right for better centering */
+.barber-showcase-card:first-child .barber-showcase-image img {
+  object-position: 55% center;
 }
 
 .barber-showcase-card:hover .barber-showcase-image img {

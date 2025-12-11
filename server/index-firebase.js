@@ -782,8 +782,28 @@ app.post('/api/admin/login', async (req, res) => {
       barber_id: user.barber_id || null
     });
   } catch (error) {
-    console.error('[Admin Login] Error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('[Admin Login] Error:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+      name: error.name
+    });
+    
+    // Firebase hatalarını daha iyi handle et
+    let errorMessage = 'Giriş işlemi sırasında bir hata oluştu';
+    
+    if (error.code === 'permission-denied' || error.code === 'PERMISSION_DENIED') {
+      errorMessage = 'Firebase izin hatası: Veritabanı erişim izinlerini kontrol edin';
+    } else if (error.code === 'unavailable' || error.code === 'UNAVAILABLE') {
+      errorMessage = 'Firebase servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    res.status(500).json({ 
+      error: errorMessage,
+      code: error.code || 'UNKNOWN_ERROR'
+    });
   }
 });
 

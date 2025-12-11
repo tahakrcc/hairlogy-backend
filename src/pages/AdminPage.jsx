@@ -153,9 +153,22 @@ function AdminPage() {
         message: error.message || String(error),
         code: error.code,
         url: error.config?.url,
-        method: error.config?.method
+        method: error.config?.method,
+        // Firebase errors might have additional properties
+        errorCode: error.code || error.response?.data?.code,
+        errorDetails: error.response?.data
       }
-      console.error('Login error details:', errorInfo)
+      
+      // Better error logging
+      console.error('Login error:', {
+        message: error.message,
+        code: error.code,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
+        fullError: error
+      })
       
       // Hata mesajını belirle
       let errorMessage = 'Giriş başarısız'
@@ -164,7 +177,10 @@ function AdminPage() {
       const requestUrl = error.config?.url || 'unknown'
 
       // Backend'den gelen hata mesajını al
-      if (errorData) {
+      // Önce userMessage'ı kontrol et (axios interceptor'dan gelir)
+      if (error.userMessage) {
+        errorMessage = error.userMessage
+      } else if (errorData) {
         if (typeof errorData === 'string') {
           errorMessage = errorData
         } else if (errorData.error) {
@@ -229,15 +245,22 @@ function AdminPage() {
       } 
       // 500 Server Error
       else if (errorStatus === 500) {
+        // Backend'den gelen detaylı hata mesajını göster
+        const serverError = errorData?.error || errorMessage
         setToast({ 
-          message: 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.', 
+          message: serverError || 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.', 
           type: 'error' 
         })
       }
       // Diğer hatalar
       else {
+        // Eğer errorMessage çok kısa veya anlamsızsa, daha açıklayıcı bir mesaj göster
+        let displayMessage = errorMessage
+        if (errorMessage.length <= 3 || errorMessage === 'FA' || errorMessage === 'FA') {
+          displayMessage = 'Giriş yapılamadı. Lütfen bilgilerinizi kontrol edin ve tekrar deneyin.'
+        }
         setToast({ 
-          message: `Giriş hatası: ${errorMessage}`, 
+          message: displayMessage, 
           type: 'error' 
         })
       }

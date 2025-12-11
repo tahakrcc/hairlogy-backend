@@ -58,30 +58,55 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Only log errors that are not network errors or expected errors
-    // Skip logging for cancelled requests or network errors
-    if (error.code === 'ERR_CANCELED' || error.code === 'ERR_NETWORK') {
+    // Network errors ve timeout'ları daha iyi handle et
+    if (!error.response) {
+      // Request failed but no response (network error, timeout, etc.)
+      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+        error.userMessage = 'Backend sunucusuna bağlanılamıyor. Lütfen internet bağlantınızı kontrol edin.';
+      } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        error.userMessage = 'İstek zaman aşımına uğradı. Lütfen tekrar deneyin.';
+      } else if (error.code === 'ERR_CANCELED') {
+        // Canceled requests - ignore
+        return Promise.reject(error);
+      } else {
+        error.userMessage = `Bağlantı hatası: ${error.message || 'Bilinmeyen hata'}`;
+      }
+      console.error('API Network Error:', {
+        code: error.code,
+        message: error.message,
+        url: error.config?.url,
+        baseURL: error.config?.baseURL
+      });
       return Promise.reject(error);
     }
     
-    // Log errors with more context, but less verbosely
-    if (error.response) {
-      // Server responded with error status
-      const status = error.response.status;
-      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message;
-      
-      // Only log non-4xx errors (client errors) or important 4xx errors
-      if (status >= 500 || (status === 404 && error.config?.url?.includes('/available-times'))) {
-        // Log in a cleaner format
-        console.error(`API Error [${status}]: ${error.config?.method?.toUpperCase()} ${error.config?.url}`);
-        if (errorMessage && errorMessage !== error.message) {
-          console.error('Error message:', errorMessage);
-        }
-      }
+    // Server responded with error status
+    const status = error.response.status;
+    const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message;
+    
+    // User-friendly error messages
+    if (status === 401) {
+      error.userMessage = 'Yetkilendirme hatası. Lütfen tekrar giriş yapın.';
+    } else if (status === 403) {
+      error.userMessage = 'Bu işlem için yetkiniz yok.';
+    } else if (status === 404) {
+      error.userMessage = 'İstenen kaynak bulunamadı.';
+    } else if (status === 429) {
+      error.userMessage = 'Çok fazla istek gönderildi. Lütfen birkaç dakika sonra tekrar deneyin.';
+    } else if (status >= 500) {
+      error.userMessage = errorMessage || 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.';
     } else {
-      // Request failed but no response (network error, timeout, etc.)
-      console.error('API Network Error:', error.message);
+      error.userMessage = errorMessage || error.message || 'Bir hata oluştu.';
     }
+    
+    // Only log non-4xx errors (client errors) or important 4xx errors
+    if (status >= 500 || (status === 404 && error.config?.url?.includes('/available-times'))) {
+      console.error(`API Error [${status}]: ${error.config?.method?.toUpperCase()} ${error.config?.url}`);
+      if (errorMessage && errorMessage !== error.message) {
+        console.error('Error message:', errorMessage);
+      }
+    }
+    
     return Promise.reject(error);
   }
 );

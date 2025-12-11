@@ -1,0 +1,219 @@
+.barber-select-page {
+  min-height: 100vh;
+  background: #000000;
+  color: #ffffff;
+  padding-top: 100px;
+}
+
+.barber-select-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.98);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(188, 136, 27, 0.15);
+  padding: 20px 0;
+}
+
+.barber-select-header .container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.barber-select-content {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+@media (max-width: 768px) {
+  .barber-select-header .container {
+    padding: 0 16px;
+  }
+
+  .barber-select-content {
+    padding: 0 16px;
+  }
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid rgba(188, 136, 27, 0.3);
+  border-radius: 8px;
+  padding: 10px 16px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+.back-btn:hover {
+  background: rgba(188, 136, 27, 0.1);
+  border-color: #bc881b;
+}
+
+.barber-select-header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0;
+  color: #ffffff;
+}
+
+.barber-select-main {
+  padding: 40px 0;
+}
+
+.barber-select-content {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.select-description {
+  text-align: center;
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 40px;
+}
+
+.barbers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+}
+
+.barber-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px solid rgba(188, 136, 27, 0.2);
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.barber-card:hover {
+  border-color: #bc881b;
+  transform: translateY(-5px);
+  box-shadow: 0 10px 40px rgba(188, 136, 27, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.barber-image-wrapper {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  overflow: hidden;
+}
+
+.barber-image-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.barber-card:hover .barber-image-wrapper img {
+  transform: scale(1.1);
+}
+
+.barber-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.barber-card:hover .barber-overlay {
+  opacity: 1;
+}
+
+.barber-overlay svg {
+  color: #bc881b;
+}
+
+.barber-info {
+  padding: 24px;
+  text-align: center;
+}
+
+.barber-info h3 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #ffffff;
+}
+
+.barber-experience {
+  font-size: 14px;
+  color: #bc881b;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.barber-specialty {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 20px;
+}
+
+.select-barber-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #bc881b 0%, #b47e11 100%);
+  color: #000000;
+  font-weight: 700;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.select-barber-btn:hover {
+  background: linear-gradient(135deg, #b47e11 0%, #bc881b 100%);
+  transform: scale(1.02);
+}
+
+@media (max-width: 768px) {
+  .barber-select-page {
+    padding-top: 80px;
+  }
+
+  .barber-select-header .container {
+    padding: 0 20px;
+  }
+
+  .barber-select-header h1 {
+    font-size: 20px;
+  }
+
+  .barbers-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .barber-image-wrapper {
+    height: 250px;
+  }
+
+  .select-description {
+    font-size: 16px;
+    margin-bottom: 30px;
+  }
+}
+

@@ -1,0 +1,406 @@
+/* ============================================
+   GREEK KEY (MEANDER) PATTERNS
+   ============================================ */
+
+/* Pattern 1: Top Border */
+.greek-key-top {
+  position: relative;
+  padding-top: 20px;
+}
+
+.greek-key-top::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background-image: 
+    repeating-linear-gradient(
+      90deg,
+      #bc881b 0px,
+      #bc881b 10px,
+      #000000 10px,
+      #000000 20px,
+      #bc881b 20px,
+      #bc881b 30px,
+      #000000 30px,
+      #000000 40px
+    );
+  background-size: 40px 20px;
+  opacity: 0.3;
+}
+
+/* Pattern 2: Bottom Border - Real Greek Key Meander */
+.greek-key-bottom {
+  position: relative;
+  padding-bottom: 25px;
+}
+
+.greek-key-bottom::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 25px;
+  background-image: 
+    repeating-linear-gradient(
+      90deg,
+      #bc881b 0px,
+      #bc881b 8px,
+      transparent 8px,
+      transparent 12px,
+      #bc881b 12px,
+      #bc881b 20px,
+      transparent 20px,
+      transparent 24px,
+      #bc881b 24px,
+      #bc881b 32px,
+      transparent 32px,
+      transparent 36px,
+      #bc881b 36px,
+      #bc881b 44px,
+      transparent 44px,
+      transparent 48px
+    );
+  background-size: 48px 25px;
+  opacity: 0.6;
+  z-index: 1;
+}
+
+/* Pattern 3: Left Border */
+.greek-key-left {
+  position: relative;
+  padding-left: 20px;
+}
+
+.greek-key-left::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 20px;
+  background-image: 
+    repeating-linear-gradient(
+      180deg,
+      #bc881b 0px,
+      #bc881b 10px,
+      #000000 10px,
+      #000000 20px,
+      #bc881b 20px,
+      #bc881b 30px,
+      #000000 30px,
+      #000000 40px
+    );
+  background-size: 20px 40px;
+  opacity: 0.3;
+}
+
+/* Pattern 4: Right Border */
+.greek-key-right {
+  position: relative;
+  padding-right: 20px;
+}
+
+.greek-key-right::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  background-image: 
+    repeating-linear-gradient(
+      180deg,
+      #000000 0px,
+      #000000 10px,
+      #bc881b 10px,
+      #bc881b 20px,
+      #000000 20px,
+      #000000 30px,
+      #bc881b 30px,
+      #bc881b 40px
+    );
+  background-size: 20px 40px;
+  opacity: 0.3;
+}
+
+/* Pattern 5: Corner Decoration - Greek Key L Shape */
+.greek-key-corner {
+  position: relative;
+  overflow: visible;
+}
+
+.greek-key-corner::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 50px;
+  height: 50px;
+  background-image: 
+    repeating-linear-gradient(
+      0deg,
+      #bc881b 0px,
+      #bc881b 4px,
+      transparent 4px,
+      transparent 8px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      #bc881b 0px,
+      #bc881b 4px,
+      transparent 4px,
+      transparent 8px
+    );
+  background-size: 50px 50px;
+  opacity: 0.5;
+  z-index: 1;
+  clip-path: polygon(0 0, 20px 0, 20px 4px, 4px 4px, 4px 20px, 0 20px);
+}
+
+/* Pattern 6: Diagonal Stripes */
+.greek-key-diagonal {
+  position: relative;
+  overflow: hidden;
+}
+
+.greek-key-diagonal::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background-image: 
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 20px,
+      rgba(188, 136, 27, 0.1) 20px,
+      rgba(188, 136, 27, 0.1) 40px
+    );
+  pointer-events: none;
+}
+
+/* Pattern 7: Box Border */
+.greek-key-box {
+  position: relative;
+  border: 2px solid rgba(188, 136, 27, 0.3);
+  background-image: 
+    linear-gradient(rgba(188, 136, 27, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(188, 136, 27, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Pattern 8: Subtle Background */
+.greek-key-bg {
+  background-image: 
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(188, 136, 27, 0.03) 2px,
+      rgba(188, 136, 27, 0.03) 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 2px,
+      rgba(188, 136, 27, 0.03) 2px,
+      rgba(188, 136, 27, 0.03) 4px
+    );
+}
+
+/* Pattern 9: Ornate Frame - Greek Key Meander */
+.greek-key-frame {
+  position: relative;
+  padding: 20px;
+}
+
+.greek-key-frame::before,
+.greek-key-frame::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background-image: 
+    repeating-linear-gradient(
+      90deg,
+      #bc881b 0px,
+      #bc881b 6px,
+      transparent 6px,
+      transparent 10px,
+      #bc881b 10px,
+      #bc881b 16px,
+      transparent 16px,
+      transparent 20px,
+      #bc881b 20px,
+      #bc881b 26px,
+      transparent 26px,
+      transparent 30px,
+      #bc881b 30px,
+      #bc881b 36px,
+      transparent 36px,
+      transparent 40px
+    );
+  background-size: 40px 20px;
+  opacity: 0.7;
+  z-index: 1;
+}
+
+.greek-key-frame::before {
+  top: 0;
+}
+
+.greek-key-frame::after {
+  bottom: 0;
+}
+
+/* Pattern 10: Wave Border */
+.greek-key-wave {
+  position: relative;
+}
+
+.greek-key-wave::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    #bc881b 20%,
+    #bc881b 30%,
+    transparent 40%,
+    transparent 60%,
+    #bc881b 70%,
+    #bc881b 80%,
+    transparent 100%
+  );
+  background-size: 40px 3px;
+  opacity: 0.5;
+}
+
+/* Additional decorative elements */
+.date-card {
+  position: relative;
+}
+
+.date-card::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border: 1px solid rgba(188, 136, 27, 0.2);
+  border-radius: 16px;
+  background-image: 
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 3px,
+      rgba(188, 136, 27, 0.05) 3px,
+      rgba(188, 136, 27, 0.05) 6px
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Pattern 11: Versace Icon Vertical Border */
+.versace-vertical-border {
+  position: relative;
+  padding-left: 40px;
+}
+
+.versace-vertical-border::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40px;
+  background-color: #bc881b;
+  background-image: url('/Adsız%20tasarım.svg');
+  background-repeat: repeat-y;
+  background-position: left center;
+  background-size: 40px 35px;
+  mask-image: url('/Adsız%20tasarım.svg');
+  mask-mode: alpha;
+  mask-repeat: repeat-y;
+  mask-position: left center;
+  mask-size: 40px 35px;
+  -webkit-mask-image: url('/Adsız%20tasarım.svg');
+  -webkit-mask-repeat: repeat-y;
+  -webkit-mask-position: left center;
+  -webkit-mask-size: 40px 35px;
+  opacity: 1;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.versace-vertical-border-right {
+  position: relative;
+  padding-right: 40px;
+}
+
+.versace-vertical-border-right::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 40px;
+  background-color: #bc881b;
+  background-image: url('/Adsız%20tasarım.svg');
+  background-repeat: repeat-y;
+  background-position: right center;
+  background-size: 40px 35px;
+  mask-image: url('/Adsız%20tasarım.svg');
+  mask-mode: alpha;
+  mask-repeat: repeat-y;
+  mask-position: right center;
+  mask-size: 40px 35px;
+  -webkit-mask-image: url('/Adsız%20tasarım.svg');
+  -webkit-mask-repeat: repeat-y;
+  -webkit-mask-position: right center;
+  -webkit-mask-size: 40px 35px;
+  opacity: 1;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .greek-key-top::before,
+  .greek-key-bottom::after,
+  .greek-key-left::before,
+  .greek-key-right::after {
+    opacity: 0.2;
+  }
+  
+  .versace-vertical-border {
+    padding-left: 30px;
+  }
+  
+  .versace-vertical-border::before {
+    width: 30px;
+    background-size: 30px 25px;
+  }
+  
+  .versace-vertical-border-right {
+    padding-right: 30px;
+  }
+  
+  .versace-vertical-border-right::after {
+    width: 30px;
+    background-size: 30px 25px;
+  }
+}
+

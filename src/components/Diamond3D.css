@@ -1,0 +1,16 @@
+.diamond-3d-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.diamond-3d-wrapper canvas {
+  display: block;
+  filter: drop-shadow(0 0 30px rgba(188, 136, 27, 0.8));
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+

@@ -1903,6 +1903,9 @@
 .social-sidebar-link span {
   font-size: 14px;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Instagram - Pink/Purple Gradient */
@@ -2113,10 +2116,15 @@
   .social-sidebar-link {
     padding: 10px 12px;
     min-width: 160px;
+    max-width: 200px;
   }
   
   .social-sidebar-link span {
     font-size: 13px;
+    max-width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   
   .social-sidebar-toggle {
@@ -2175,6 +2183,7 @@
   .social-sidebar-link {
     padding: 8px 10px;
     min-width: 140px;
+    max-width: 180px;
   }
   
   .social-sidebar-link svg {
@@ -2184,6 +2193,10 @@
   
   .social-sidebar-link span {
     font-size: 12px;
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   
   .social-sidebar-toggle {

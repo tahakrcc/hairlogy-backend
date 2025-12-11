@@ -106,3 +106,4 @@ Sorun devam ederse:
 2. `/api/email-config` endpoint'ini çağırın
 3. Mailjet Dashboard'da mail gönderim loglarını kontrol edin
 
+

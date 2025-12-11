@@ -2,7 +2,6 @@ import axios from 'axios';
 
 // API Base URL Configuration
 // Production için: Netlify'da Environment Variable olarak VITE_API_URL ayarlayın
-// Veya geçici olarak aşağıdaki satırda backend URL'inizi yazın
 const getApiBaseUrl = () => {
   // 1. Öncelik: Environment variable (Netlify'da ayarlanmalı)
   if (import.meta.env.VITE_API_URL) {
@@ -11,11 +10,14 @@ const getApiBaseUrl = () => {
   
   // 2. Production modunda ve environment variable yoksa
   if (import.meta.env.PROD) {
-    // ⚠️ BACKEND URL'İNİZİ BURAYA YAZIN ⚠️
-    // Örnek: 'https://your-backend.railway.app/api'
-    // Örnek: 'https://your-backend.render.com/api'
-    // Örnek: 'https://your-backend.herokuapp.com/api'
-    return 'https://your-backend-url.com/api'; // ← Backend URL'inizi buraya yazın
+    // ⚠️ UYARI: Backend URL'i ayarlanmamış!
+    // Netlify Dashboard → Site settings → Environment variables
+    // Key: VITE_API_URL
+    // Value: https://your-backend.onrender.com/api (veya backend URL'iniz)
+    console.error('⚠️ VITE_API_URL environment variable ayarlanmamış!');
+    console.error('Netlify Dashboard\'dan VITE_API_URL environment variable\'ını ekleyin.');
+    // Fallback: placeholder URL (hata mesajı için)
+    return 'https://your-backend-url.com/api';
   }
   
   // 3. Development için localhost proxy

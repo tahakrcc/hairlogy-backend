@@ -113,31 +113,70 @@ function AdminPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault()
+    
+    // Loading state ekle
+    setLoading(true)
+    
     try {
       const response = await adminAPI.login(loginForm.username, loginForm.password)
-      localStorage.setItem('adminToken', response.data.token)
-      localStorage.setItem('adminUsername', response.data.username)
-      if (response.data.barber_id) {
-        localStorage.setItem('adminBarberId', response.data.barber_id)
-        if (!showAllBookings) {
-          setFilters(prev => ({ ...prev, barberId: String(response.data.barber_id) }))
+      
+      if (response && response.data && response.data.token) {
+        localStorage.setItem('adminToken', response.data.token)
+        localStorage.setItem('adminUsername', response.data.username)
+        if (response.data.barber_id) {
+          localStorage.setItem('adminBarberId', response.data.barber_id)
+          if (!showAllBookings) {
+            setFilters(prev => ({ ...prev, barberId: String(response.data.barber_id) }))
+          }
         }
+        setCurrentUser(response.data.username)
+        setIsAuthenticated(true)
+        setToast({ message: 'Giriş başarılı!', type: 'success' })
+      } else {
+        setToast({ message: 'Giriş başarısız: Geçersiz yanıt alındı.', type: 'error' })
       }
-      setCurrentUser(response.data.username)
-      setIsAuthenticated(true)
     } catch (error) {
+      console.error('Login error:', error)
+      
       const errorMessage = error.response?.data?.error || error.message || 'Giriş başarısız'
       const errorStatus = error.response?.status
+      const requestUrl = error.config?.url || 'unknown'
 
-      if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error') || error.code === 'ERR_NETWORK') {
-        setToast({ message: 'Backend sunucusuna bağlanılamıyor. Lütfen backend\'in çalıştığından emin olun.', type: 'error' })
-      } else if (errorStatus === 401) {
+      // CORS hatası kontrolü
+      if (error.message?.includes('CORS') || error.message?.includes('Access-Control-Allow-Origin')) {
+        setToast({ 
+          message: 'CORS hatası: Backend CORS ayarlarını kontrol edin. Backend\'in frontend domain\'ini allow list\'ine eklemesi gerekiyor.', 
+          type: 'error' 
+        })
+      } 
+      // Network hatası
+      else if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error') || error.code === 'ERR_NETWORK') {
+        if (requestUrl.includes('your-backend-url.com')) {
+          setToast({ 
+            message: 'Backend URL yapılandırılmamış! Netlify Dashboard\'dan VITE_API_URL environment variable\'ını ekleyin.', 
+            type: 'error' 
+          })
+        } else {
+          setToast({ 
+            message: 'Backend sunucusuna bağlanılamıyor. Lütfen backend\'in çalıştığından emin olun.', 
+            type: 'error' 
+          })
+        }
+      } 
+      // 401 Unauthorized
+      else if (errorStatus === 401) {
         setToast({ message: 'Kullanıcı adı veya şifre hatalı.', type: 'error' })
-      } else if (errorStatus === 429) {
+      } 
+      // 429 Too Many Requests
+      else if (errorStatus === 429) {
         setToast({ message: errorMessage, type: 'error' })
-      } else {
+      } 
+      // Diğer hatalar
+      else {
         setToast({ message: `Giriş hatası: ${errorMessage}`, type: 'error' })
       }
+    } finally {
+      setLoading(false)
     }
   }
 

@@ -117,8 +117,16 @@ async function initializeDatabase() {
   try {
     console.log('Initializing database...');
     
-    // Auto-confirm any old pending bookings
-    await autoConfirmPendingBookings();
+    // Auto-confirm any old pending bookings (with quota protection)
+    try {
+      await autoConfirmPendingBookings();
+    } catch (error) {
+      if (error.message && error.message.includes('Quota exceeded')) {
+        console.warn('Skipping auto-confirm due to quota limit');
+      } else {
+        throw error; // Re-throw if it's not a quota error
+      }
+    }
     
     // Check if barbers exist
     const barbersSnapshot = await db.collection('barbers').limit(1).get();
@@ -1471,28 +1479,32 @@ async function cleanupOldBookings() {
 
     console.log(`Cleaning up bookings older than ${twoWeeksAgoStr}...`);
     
-    // Get all bookings
-    const allBookings = await db.collection('bookings').get();
-    let deletedCount = 0;
+    // OPTIMIZED: Query only old bookings instead of getting all
+    // This reduces Firestore read operations significantly
+    const oldBookingsQuery = db.collection('bookings')
+      .where('appointment_date', '<', twoWeeksAgoStr)
+      .limit(500); // Process max 500 at a time to avoid quota issues
+    
+    const snapshot = await oldBookingsQuery.get();
+    
+    if (snapshot.empty) {
+      console.log('No old bookings to clean up');
+      return;
+    }
 
+    let deletedCount = 0;
     const batch = db.batch();
     let batchCount = 0;
 
-    allBookings.forEach(doc => {
-      const data = doc.data();
-      const appointmentDate = data.appointment_date;
-      
-      // Compare dates (format: YYYY-MM-DD)
-      if (appointmentDate && appointmentDate < twoWeeksAgoStr) {
-        batch.delete(doc.ref);
-        deletedCount++;
-        batchCount++;
+    snapshot.forEach(doc => {
+      batch.delete(doc.ref);
+      deletedCount++;
+      batchCount++;
 
-        // Firestore batch limit is 500, so commit in batches
-        if (batchCount >= 500) {
-          batch.commit();
-          batchCount = 0;
-        }
+      // Firestore batch limit is 500, so commit in batches
+      if (batchCount >= 500) {
+        batch.commit();
+        batchCount = 0;
       }
     });
 
@@ -1507,16 +1519,21 @@ async function cleanupOldBookings() {
       console.log('No old bookings to clean up');
     }
   } catch (error) {
-    console.error('Error cleaning up old bookings:', error);
+    // If quota exceeded, just log and continue (don't crash server)
+    if (error.message && error.message.includes('Quota exceeded')) {
+      console.log('Skipping cleanup due to quota limit');
+    } else {
+      console.error('Error cleaning up old bookings:', error);
+    }
   }
 }
 
 // Run cleanup on startup and then daily
 async function scheduleCleanup() {
-  // Run immediately on startup
-  await cleanupOldBookings();
+  // Don't run cleanup immediately on startup to avoid quota issues
+  // Only schedule it for later
   
-  // Then run daily at 2 AM
+  // Run daily at 2 AM
   const now = new Date();
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -1531,6 +1548,7 @@ async function scheduleCleanup() {
   }, msUntilTomorrow);
   
   console.log(`Next cleanup scheduled for: ${tomorrow.toLocaleString()}`);
+  console.log('Note: Cleanup skipped on startup to preserve Firestore quota');
 }
 
 app.listen(PORT, async () => {

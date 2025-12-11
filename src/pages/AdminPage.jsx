@@ -193,6 +193,13 @@ function AdminPage() {
           })
         }
       } 
+      // 404 Not Found - Backend endpoint bulunamadı
+      else if (errorStatus === 404) {
+        setToast({ 
+          message: 'Backend API endpoint bulunamadı. Backend URL\'ini kontrol edin veya Netlify\'da VITE_API_URL environment variable\'ını ayarlayın.', 
+          type: 'error' 
+        })
+      }
       // 401 Unauthorized - Kullanıcı adı veya şifre hatalı
       else if (errorStatus === 401) {
         setToast({ 

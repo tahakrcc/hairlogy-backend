@@ -26,11 +26,23 @@ const getApiBaseUrl = () => {
 
 const API_BASE_URL = getApiBaseUrl();
 
+// Production'da API URL'ini console'a yazdır (debug için)
+if (import.meta.env.PROD) {
+  console.log('🔗 API Base URL:', API_BASE_URL);
+  if (API_BASE_URL.includes('your-backend-url.com')) {
+    console.error('❌ VITE_API_URL environment variable ayarlanmamış!');
+    console.error('Netlify Dashboard → Site settings → Environment variables');
+    console.error('Key: VITE_API_URL');
+    console.error('Value: https://hairlogy-backend.onrender.com/api');
+  }
+}
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000, // 10 saniye timeout
 });
 
 // Add token to requests if available

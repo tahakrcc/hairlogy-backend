@@ -3,7 +3,6 @@ services:
     name: hairlogy-backend
     env: node
     plan: free
-    rootDirectory: server
     buildCommand: npm install
     startCommand: npm start
     envVars:

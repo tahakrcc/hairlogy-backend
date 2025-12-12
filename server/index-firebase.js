@@ -63,6 +63,24 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'Hairlogy Yasin Premium Backend API',
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      barbers: '/api/barbers',
+      services: '/api/services',
+      availableTimes: '/api/available-times',
+      bookings: '/api/bookings',
+      admin: '/api/admin'
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 

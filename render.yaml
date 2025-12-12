@@ -11,7 +11,7 @@ services:
       - key: PORT
         value: 10000
       - key: FIREBASE_PROJECT_ID
-        value: kuafor-tk # kendi Firebase proje ID'nizi yazın
+        value: kuafor-tk-a9bf0 # Yeni Firebase proje ID
       - key: FIREBASE_SERVICE_ACCOUNT_PATH
         value: ./serviceAccountKey.json
       - key: MAILJET_API_KEY

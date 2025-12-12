@@ -14,6 +14,40 @@ const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
 const loginAttempts = {}; // { username: { count, lockUntil } }
 
+// In-memory cache for frequently accessed data (reduces Firestore reads)
+const cache = {
+  barbers: { data: null, timestamp: 0, ttl: 5 * 60 * 1000 }, // 5 minutes
+  services: { data: null, timestamp: 0, ttl: 5 * 60 * 1000 }, // 5 minutes
+  closedDates: { data: null, timestamp: 0, ttl: 1 * 60 * 1000 } // 1 minute
+};
+
+// Cache helper functions
+function getCachedData(key) {
+  const cached = cache[key];
+  if (cached && cached.data && (Date.now() - cached.timestamp) < cached.ttl) {
+    return cached.data;
+  }
+  return null;
+}
+
+function setCachedData(key, data) {
+  cache[key] = {
+    data,
+    timestamp: Date.now(),
+    ttl: cache[key]?.ttl || 5 * 60 * 1000
+  };
+}
+
+function clearCache(key = null) {
+  if (key) {
+    cache[key] = { data: null, timestamp: 0, ttl: cache[key]?.ttl || 5 * 60 * 1000 };
+  } else {
+    Object.keys(cache).forEach(k => {
+      cache[k] = { data: null, timestamp: 0, ttl: cache[k]?.ttl || 5 * 60 * 1000 };
+    });
+  }
+}
+
 // CORS configuration - allow production and dev frontends
 app.use(cors({
   origin: [
@@ -153,6 +187,7 @@ async function initializeDatabase() {
       for (const barber of defaultBarbers) {
         await db.collection('barbers').add(barber);
       }
+      clearCache('barbers'); // Clear cache when barbers are added
       console.log('Default barbers created');
     }
 
@@ -258,6 +293,7 @@ async function initializeDatabase() {
           created_at: FieldValue.serverTimestamp()
         });
       }
+      clearCache('services'); // Clear cache when services are added
       console.log('Default services created');
     }
 
@@ -295,20 +331,24 @@ const verifyToken = (req, res, next) => {
 
 // ============ PUBLIC ROUTES ============
 
-// Get all barbers
+// Get all barbers (with cache to reduce Firestore reads)
 app.get('/api/barbers', async (req, res) => {
   try {
-    const snapshot = await db.collection('barbers')
-      .where('active', '==', true)
-      .get();
-    
-    const barbers = [];
-    snapshot.forEach(doc => {
-      barbers.push({
-        id: doc.id,
-        ...doc.data()
+    let barbers = getCachedData('barbers');
+    if (!barbers) {
+      const snapshot = await db.collection('barbers')
+        .where('active', '==', true)
+        .get();
+      
+      barbers = [];
+      snapshot.forEach(doc => {
+        barbers.push({
+          id: doc.id,
+          ...doc.data()
+        });
       });
-    });
+      setCachedData('barbers', barbers);
+    }
     
     res.json(barbers);
   } catch (error) {
@@ -316,20 +356,24 @@ app.get('/api/barbers', async (req, res) => {
   }
 });
 
-// Get all services
+// Get all services (with cache to reduce Firestore reads)
 app.get('/api/services', async (req, res) => {
   try {
-    const snapshot = await db.collection('services')
-      .where('active', '==', true)
-      .get();
-    
-    const services = [];
-    snapshot.forEach(doc => {
-      services.push({
-        id: doc.id,
-        ...doc.data()
+    let services = getCachedData('services');
+    if (!services) {
+      const snapshot = await db.collection('services')
+        .where('active', '==', true)
+        .get();
+      
+      services = [];
+      snapshot.forEach(doc => {
+        services.push({
+          id: doc.id,
+          ...doc.data()
+        });
       });
-    });
+      setCachedData('services', services);
+    }
     
     res.json(services);
   } catch (error) {
@@ -346,14 +390,22 @@ app.get('/api/available-times', async (req, res) => {
       return res.status(400).json({ error: 'barberId and date are required' });
     }
 
-    // Check if date is in a closed date range
-    const closedDatesSnapshot = await db.collection('closed_dates').get();
+    // Check if date is in a closed date range (use cache to reduce Firestore reads)
+    let closedDates = getCachedData('closedDates');
+    if (!closedDates) {
+      const closedDatesSnapshot = await db.collection('closed_dates').get();
+      closedDates = [];
+      closedDatesSnapshot.forEach(doc => {
+        closedDates.push(doc.data());
+      });
+      setCachedData('closedDates', closedDates);
+    }
+    
     const selectedDate = new Date(date);
     let isClosed = false;
     let closedReason = '';
 
-    closedDatesSnapshot.forEach(doc => {
-      const closedData = doc.data();
+    closedDates.forEach(closedData => {
       const startDate = new Date(closedData.start_date);
       const endDate = new Date(closedData.end_date);
       
@@ -831,17 +883,22 @@ app.get('/api/admin/bookings', verifyToken, async (req, res) => {
     // For barberId, we'll filter in memory since it might be stored as number or string
     // Don't add barberId to query, filter in memory instead
 
+    // OPTIMIZED: Add limit to prevent fetching too many documents (reduces Firestore reads)
+    // Default limit: 500 bookings (enough for admin panel, reduces quota usage)
+    const limit = parseInt(req.query.limit) || 500;
+    
     // Try to use orderBy, but if index is missing, fetch all and sort in memory
     let snapshot;
     try {
       snapshot = await baseQuery.orderBy('appointment_date', 'desc')
       .orderBy('appointment_time', 'desc')
+      .limit(limit)
       .get();
     } catch (indexError) {
       // If index error, fetch without orderBy and sort in memory
       if (indexError.message && indexError.message.includes('index')) {
         console.warn('Firestore index missing, fetching without orderBy and sorting in memory');
-        snapshot = await baseQuery.get();
+        snapshot = await baseQuery.limit(limit).get();
       } else {
         throw indexError;
       }
@@ -1080,11 +1137,20 @@ app.get('/api/admin/stats', verifyToken, async (req, res) => {
     const { showAll } = req.query;
     const stats = {};
 
+    // OPTIMIZED: Limit stats calculation to reduce Firestore reads
+    // Only fetch bookings from last 90 days for stats (reduces quota usage significantly)
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    const ninetyDaysAgoStr = ninetyDaysAgo.toISOString().split('T')[0];
+    
     // Get bookings based on user's barber_id if showAll is not true
     let totalSnapshot;
     if (userBarberId && showAll !== 'true') {
-      // Fetch all and filter in memory
-      const allBookings = await db.collection('bookings').get();
+      // OPTIMIZED: Query by date range instead of fetching all
+      const allBookings = await db.collection('bookings')
+        .where('appointment_date', '>=', ninetyDaysAgoStr)
+        .limit(1000) // Max 1000 bookings for stats calculation
+        .get();
       const filteredDocs = [];
       allBookings.forEach(doc => {
         const data = doc.data();
@@ -1105,7 +1171,11 @@ app.get('/api/admin/stats', verifyToken, async (req, res) => {
         forEach: (callback) => filteredDocs.forEach(callback) 
       };
     } else {
-      totalSnapshot = await db.collection('bookings').get();
+      // OPTIMIZED: Limit to last 90 days and max 1000 bookings
+      totalSnapshot = await db.collection('bookings')
+        .where('appointment_date', '>=', ninetyDaysAgoStr)
+        .limit(1000)
+        .get();
     }
     
     stats.totalBookings = totalSnapshot.size;
@@ -1425,7 +1495,18 @@ app.post('/api/admin/closed-dates', verifyToken, async (req, res) => {
     }
 
     // Check for overlapping ranges
-    const existingSnapshot = await db.collection('closed_dates').get();
+    // OPTIMIZED: Use cache for closed dates check
+    let existingClosedDates = getCachedData('closedDates');
+    if (!existingClosedDates) {
+      const existingSnapshot = await db.collection('closed_dates').get();
+      existingClosedDates = [];
+      existingSnapshot.forEach(doc => {
+        existingClosedDates.push({ id: doc.id, ...doc.data() });
+      });
+      setCachedData('closedDates', existingClosedDates);
+    }
+    
+    const existingSnapshot = { forEach: (callback) => existingClosedDates.forEach(callback) };
     const overlaps = [];
     existingSnapshot.forEach(doc => {
       const existing = doc.data();
@@ -1457,6 +1538,9 @@ app.post('/api/admin/closed-dates', verifyToken, async (req, res) => {
       created_by: req.user?.username || 'unknown'
     });
 
+    // Clear cache when closed date is added
+    clearCache('closedDates');
+
     res.json({ 
       id: closedDateRef.id,
       start_date,
@@ -1481,6 +1565,9 @@ app.delete('/api/admin/closed-dates/:id', verifyToken, async (req, res) => {
     }
 
     await db.collection('closed_dates').doc(id).delete();
+    
+    // Clear cache when closed date is deleted
+    clearCache('closedDates');
     
     res.json({ message: 'Closed date range deleted successfully' });
   } catch (error) {

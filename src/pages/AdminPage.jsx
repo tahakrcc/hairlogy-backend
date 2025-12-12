@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { LogOut, Calendar, Users, DollarSign, CheckCircle, XCircle, Clock, Trash2, Filter, Send, Phone, MessageSquare, ChevronRight, ChevronLeft } from 'lucide-react'
-import { adminAPI, default as api } from '../services/api'
+import { LogOut, Calendar, Users, DollarSign, CheckCircle, XCircle, Clock, Trash2, Filter, Send, Phone, MessageSquare, ChevronRight, ChevronLeft, Plus, Scissors, X } from 'lucide-react'
+import { adminAPI, barbersAPI, servicesAPI, default as api } from '../services/api'
 import Toast from '../components/Toast'
 import './AdminPage.css'
 import { addDays, format, startOfDay, isWithinInterval, parseISO, isSameDay } from 'date-fns'
@@ -33,6 +33,24 @@ function AdminPage() {
   const [showClosedDateForm, setShowClosedDateForm] = useState(false)
   const [closedDateForm, setClosedDateForm] = useState({ start_date: '', end_date: '', reason: '' })
   const [showFilters, setShowFilters] = useState(false)
+  const [showCreateBookingModal, setShowCreateBookingModal] = useState(false)
+  const [createBookingForm, setCreateBookingForm] = useState({
+    barberId: '',
+    serviceName: '',
+    servicePrice: '',
+    customerName: '',
+    customerPhone: '',
+    customerEmail: '',
+    appointmentDate: '',
+    appointmentTime: ''
+  })
+  const [availableTimesForDate, setAvailableTimesForDate] = useState([])
+  const [loadingAvailableTimes, setLoadingAvailableTimes] = useState(false)
+  const [creatingBooking, setCreatingBooking] = useState(false)
+  const [reportDate, setReportDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [sendingReport, setSendingReport] = useState(false)
+  const [barbers, setBarbers] = useState({})
+  const [services, setServices] = useState([])
 
   const horizonStart = startOfDay(new Date())
   const horizonEnd = startOfDay(addDays(horizonStart, 13)) // 14 günlük görünüm
@@ -49,6 +67,8 @@ function AdminPage() {
       loadBookings()
       loadStats()
       loadClosedDates()
+      loadBarbers()
+      loadServices()
     })
 
     const interval = setInterval(() => {
@@ -308,6 +328,10 @@ function AdminPage() {
       setStats(response.data)
     } catch (error) {
       console.error('Load stats error:', error)
+      // Don't show toast for stats errors, just log
+      if (error.response?.status === 401) {
+        handleLogout()
+      }
     }
   }
 
@@ -317,6 +341,50 @@ function AdminPage() {
       setClosedDates(response.data)
     } catch (error) {
       console.error('Load closed dates error:', error)
+      // Don't show toast for closed dates errors, just log
+      if (error.response?.status === 401) {
+        handleLogout()
+      }
+    }
+  }
+
+  const loadBarbers = async () => {
+    try {
+      const response = await barbersAPI.getAll()
+      const barbersMap = {}
+      response.data.forEach(barber => {
+        barbersMap[barber.id] = barber
+      })
+      setBarbers(barbersMap)
+    } catch (error) {
+      console.error('Load barbers error:', error)
+    }
+  }
+
+  const loadServices = async () => {
+    try {
+      const response = await servicesAPI.getAll()
+      setServices(response.data)
+    } catch (error) {
+      console.error('Load services error:', error)
+    }
+  }
+
+  const loadAdminAvailableTimes = async (barberId, date) => {
+    if (!barberId || !date) {
+      setAvailableTimesForDate([])
+      return
+    }
+
+    setLoadingAvailableTimes(true)
+    try {
+      const response = await adminAPI.getAvailableTimes(barberId, date)
+      setAvailableTimesForDate(response.data.availableTimes || [])
+    } catch (error) {
+      console.error('Load available times error:', error)
+      setAvailableTimesForDate([])
+    } finally {
+      setLoadingAvailableTimes(false)
     }
   }
 
@@ -406,6 +474,75 @@ function AdminPage() {
   const handleMessage = (phone) => {
     const message = encodeURIComponent('Merhaba, randevunuz hakkında bilgilendirme yapmak istiyoruz.')
     window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${message}`, '_blank')
+  }
+
+  const handleCreateBooking = async (e) => {
+    e.preventDefault()
+    
+    if (!createBookingForm.barberId || !createBookingForm.serviceName || !createBookingForm.customerName || 
+        !createBookingForm.customerPhone || !createBookingForm.appointmentDate || !createBookingForm.appointmentTime) {
+      setToast({ message: 'Lütfen tüm zorunlu alanları doldurun', type: 'error' })
+      return
+    }
+
+    setCreatingBooking(true)
+    try {
+      const selectedBarber = barbers[createBookingForm.barberId]
+      const selectedService = services.find(s => s.name === createBookingForm.serviceName)
+      
+      await adminAPI.createBooking({
+        barberId: parseInt(createBookingForm.barberId),
+        barberName: selectedBarber.name,
+        serviceName: createBookingForm.serviceName,
+        servicePrice: selectedService ? selectedService.price : parseFloat(createBookingForm.servicePrice) || 0,
+        customerName: createBookingForm.customerName,
+        customerPhone: createBookingForm.customerPhone,
+        customerEmail: createBookingForm.customerEmail || null,
+        appointmentDate: createBookingForm.appointmentDate,
+        appointmentTime: createBookingForm.appointmentTime
+      })
+
+      setToast({ message: 'Randevu başarıyla oluşturuldu', type: 'success' })
+      setShowCreateBookingModal(false)
+      setCreateBookingForm({
+        barberId: '',
+        serviceName: '',
+        servicePrice: '',
+        customerName: '',
+        customerPhone: '',
+        customerEmail: '',
+        appointmentDate: '',
+        appointmentTime: ''
+      })
+      loadBookings()
+      loadStats()
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || error.message || 'Randevu oluşturulamadı'
+      setToast({ message: errorMsg, type: 'error' })
+    } finally {
+      setCreatingBooking(false)
+    }
+  }
+
+  const handleSendDailyReport = async () => {
+    if (!reportDate) {
+      setToast({ message: 'Lütfen bir tarih seçin', type: 'error' })
+      return
+    }
+
+    setSendingReport(true)
+    try {
+      const response = await adminAPI.sendDailyReport(reportDate)
+      setToast({ 
+        message: `Günlük rapor emaili gönderildi (${response.data.totalBookings} randevu)`, 
+        type: 'success' 
+      })
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || error.message || 'Rapor gönderilemedi'
+      setToast({ message: errorMsg, type: 'error' })
+    } finally {
+      setSendingReport(false)
+    }
   }
 
   const getStatusBadge = (status) => {
@@ -528,6 +665,14 @@ function AdminPage() {
             <p className="header-sub">14 günlük takvim, mobil öncelikli</p>
           </div>
           <div className="header-actions">
+            <button 
+              className="create-booking-btn" 
+              onClick={() => setShowCreateBookingModal(true)}
+              title="Yeni Randevu Oluştur"
+            >
+              <Plus size={18} />
+              Randevu Ekle
+            </button>
             <button className="refresh-btn outline" onClick={() => loadBookings(showAllBookings)}>Yenile</button>
             <button onClick={handleLogout} className="logout-btn">
               <LogOut size={18} />
@@ -799,6 +944,172 @@ function AdminPage() {
           </div>
         </div>
       )}
+
+      {/* Create Booking Modal */}
+      {showCreateBookingModal && (
+        <div className="modal-overlay" onClick={() => setShowCreateBookingModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Yeni Randevu Oluştur</h2>
+              <button className="modal-close" onClick={() => setShowCreateBookingModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleCreateBooking} className="create-booking-form">
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Berber *</label>
+                  <select
+                    value={createBookingForm.barberId}
+                    onChange={(e) => {
+                      const newBarberId = e.target.value
+                      setCreateBookingForm({ ...createBookingForm, barberId: newBarberId, appointmentTime: '' })
+                      if (newBarberId && createBookingForm.appointmentDate) {
+                        loadAdminAvailableTimes(newBarberId, createBookingForm.appointmentDate)
+                      }
+                    }}
+                    required
+                  >
+                    <option value="">Seçiniz</option>
+                    {Object.values(barbers).map(barber => (
+                      <option key={barber.id} value={barber.id}>{barber.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Tarih *</label>
+                  <input
+                    type="date"
+                    value={createBookingForm.appointmentDate}
+                    onChange={(e) => {
+                      const newDate = e.target.value
+                      setCreateBookingForm({ ...createBookingForm, appointmentDate: newDate, appointmentTime: '' })
+                      if (newDate && createBookingForm.barberId) {
+                        loadAdminAvailableTimes(createBookingForm.barberId, newDate)
+                      }
+                    }}
+                    min={format(new Date(), 'yyyy-MM-dd')}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Saat *</label>
+                  {loadingAvailableTimes ? (
+                    <div>Yükleniyor...</div>
+                  ) : (
+                    <select
+                      value={createBookingForm.appointmentTime}
+                      onChange={(e) => setCreateBookingForm({ ...createBookingForm, appointmentTime: e.target.value })}
+                      required
+                      disabled={!createBookingForm.barberId || !createBookingForm.appointmentDate}
+                    >
+                      <option value="">Seçiniz</option>
+                      {availableTimesForDate.map(time => (
+                        <option key={time} value={time}>{time}</option>
+                      ))}
+                      {availableTimesForDate.length === 0 && createBookingForm.barberId && createBookingForm.appointmentDate && (
+                        <option disabled>Bu tarihte müsait saat yok</option>
+                      )}
+                    </select>
+                  )}
+                </div>
+                <div className="form-group">
+                  <label>Hizmet *</label>
+                  <select
+                    value={createBookingForm.serviceName}
+                    onChange={(e) => {
+                      const selected = services.find(s => s.name === e.target.value)
+                      setCreateBookingForm({ 
+                        ...createBookingForm, 
+                        serviceName: e.target.value,
+                        servicePrice: selected ? selected.price.toString() : ''
+                      })
+                    }}
+                    required
+                  >
+                    <option value="">Seçiniz</option>
+                    {services.map(service => (
+                      <option key={service.id} value={service.name}>
+                        {service.name}
+                      </option>
+                    ))}
+                  </select>
+                  {createBookingForm.serviceName && (
+                    <div style={{ marginTop: '8px', fontSize: '14px', color: '#FFD700', fontWeight: 'bold' }}>
+                      Fiyat: {services.find(s => s.name === createBookingForm.serviceName)?.price || 0}₺
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Müşteri Adı *</label>
+                <input
+                  type="text"
+                  value={createBookingForm.customerName}
+                  onChange={(e) => setCreateBookingForm({ ...createBookingForm, customerName: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Telefon *</label>
+                  <input
+                    type="tel"
+                    value={createBookingForm.customerPhone}
+                    onChange={(e) => setCreateBookingForm({ ...createBookingForm, customerPhone: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    value={createBookingForm.customerEmail}
+                    onChange={(e) => setCreateBookingForm({ ...createBookingForm, customerEmail: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn-secondary" onClick={() => setShowCreateBookingModal(false)}>
+                  İptal
+                </button>
+                <button type="submit" className="btn-primary" disabled={creatingBooking}>
+                  {creatingBooking ? 'Oluşturuluyor...' : 'Randevu Oluştur'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Daily Report Section */}
+      <div className="daily-report-section">
+        <div className="container">
+          <div className="daily-report-card">
+            <h3>Günlük Rapor Gönder</h3>
+            <p>Seçtiğiniz gündeki tüm randevular bilgileriyle beraber admin emailine gönderilir.</p>
+            <div className="report-form">
+              <input
+                type="date"
+                value={reportDate}
+                onChange={(e) => setReportDate(e.target.value)}
+                max={format(addDays(new Date(), 13), 'yyyy-MM-dd')}
+                min={format(new Date(), 'yyyy-MM-dd')}
+                className="report-date-input"
+              />
+              <button
+                onClick={handleSendDailyReport}
+                disabled={sendingReport || !reportDate}
+                className="send-report-btn"
+              >
+                {sendingReport ? 'Gönderiliyor...' : 'Raporu Email Gönder'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {toast && (
         <Toast

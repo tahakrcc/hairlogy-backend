@@ -124,12 +124,15 @@ export const bookingsAPI = {
   create: (bookingData) => api.post('/bookings', bookingData),
   getAvailableTimes: (barberId, date) => 
     api.get('/available-times', { params: { barberId, date } }),
+  getAvailableTimesBatch: (barberId, dates) => 
+    api.get('/available-times-batch', { params: { barberId, dates: dates.join(',') } }),
 };
 
 export const adminAPI = {
   login: (username, password) => api.post('/admin/login', { username, password }),
   getBookings: (filters = {}) => api.get('/admin/bookings', { params: filters }),
   getBooking: (id) => api.get(`/admin/bookings/${id}`),
+  createBooking: (bookingData) => api.post('/admin/bookings', bookingData),
   updateBooking: (id, status) => api.patch(`/admin/bookings/${id}`, { status }),
   deleteBooking: (id) => api.delete(`/admin/bookings/${id}`),
   sendReminder: (id) => api.post(`/admin/bookings/${id}/reminder`),
@@ -138,6 +141,12 @@ export const adminAPI = {
   getClosedDates: () => api.get('/admin/closed-dates'),
   createClosedDate: (data) => api.post('/admin/closed-dates', data),
   deleteClosedDate: (id) => api.delete(`/admin/closed-dates/${id}`),
+  // Available times for admin
+  getAvailableTimes: (barberId, date) => api.get('/available-times', { params: { barberId, date } }),
+  // Daily Report API
+  sendDailyReport: (date) => api.post('/admin/daily-report', { date }),
+  // Update Services API
+  updateServices: () => api.post('/admin/update-services'),
 };
 
 export default api;

@@ -22,8 +22,6 @@ npm install
 
 ### 2. Firebase Kurulumu
 
-Detaylı kurulum için `FIREBASE_SETUP.md` dosyasına bakın.
-
 **Hızlı Başlangıç:**
 1. [Firebase Console](https://console.firebase.google.com/)'da proje oluşturun
 2. Firestore Database'i test modunda başlatın

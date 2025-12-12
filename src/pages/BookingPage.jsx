@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { format, addDays, isSameDay, isPast, setHours, setMinutes, isBefore, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, addMonths, subMonths, getMonth, getYear } from 'date-fns'
-import { ArrowLeft, Calendar, Clock, User, Phone, Mail, Scissors, ChevronLeft, Edit2, Download, CheckCircle, X, Grid, List, ChevronRight } from 'lucide-react'
+import { format, addDays, isSameDay, isPast, setHours, setMinutes, isBefore, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, addMonths, subMonths, getMonth, getYear, formatDistanceToNow } from 'date-fns'
+import { tr } from 'date-fns/locale'
+import { ArrowLeft, Calendar, Clock, User, Phone, Mail, Scissors, ChevronLeft, Edit2, Download, CheckCircle, X, Grid, List, ChevronRight, RefreshCw } from 'lucide-react'
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -108,6 +109,8 @@ function BookingPage() {
   const [calendarView, setCalendarView] = useState(false) // Toggle between list and calendar view
   const [currentMonth, setCurrentMonth] = useState(new Date()) // Current month for calendar view
   const [toast, setToast] = useState(null) // Toast notification state
+  const [refreshing, setRefreshing] = useState(false) // Refresh button state
+  const [lastRefresh, setLastRefresh] = useState(null) // Last refresh timestamp
 
   useEffect(() => {
     if (!barber) {
@@ -132,87 +135,117 @@ function BookingPage() {
       loadDateAvailability(dates)
     }
 
-    // Load initial data
+    // Load initial data only once (no auto-refresh)
     loadInitialData()
-
-    // Auto-refresh date availability every 5 seconds
-    const interval = setInterval(() => {
-      if (!document.hidden) {
-        loadInitialData()
-      }
-    }, 5000)
-
-    // Refresh when page becomes visible
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        loadInitialData()
-      }
-    }
-
-    // Refresh when window gains focus
-    const handleFocus = () => {
-      loadInitialData()
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('focus', handleFocus)
-
-    return () => {
-      clearInterval(interval)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('focus', handleFocus)
-    }
+    setLastRefresh(new Date())
   }, [barberId, barber, navigate])
 
   const loadDateAvailability = async (dates) => {
     const availability = {}
-    // Load availability in parallel with error handling
-    const promises = dates.map(async (date) => {
-      const dateStr = format(date, 'yyyy-MM-dd')
-      try {
-        const response = await bookingsAPI.getAvailableTimes(barberId, dateStr)
-        const { availableTimes: times, bookedTimes: booked, isClosed } = response.data
+    
+    // Try batch query first (more efficient)
+    try {
+      const dateStrings = dates.map(date => format(date, 'yyyy-MM-dd'))
+      const response = await bookingsAPI.getAvailableTimesBatch(barberId, dateStrings)
+      const batchData = response.data
+      
+      dates.forEach(date => {
+        const dateStr = format(date, 'yyyy-MM-dd')
+        const data = batchData[dateStr]
         
-        // If date is closed, mark as full (0 available)
-        if (isClosed) {
-          return { dateStr, data: {
-            available: 0,
+        if (data) {
+          if (data.isClosed) {
+            availability[dateStr] = {
+              available: 0,
+              total: timeSlots.length,
+              booked: timeSlots.length,
+              isClosed: true
+            }
+          } else {
+            availability[dateStr] = {
+              available: data.availableTimes.length,
+              total: timeSlots.length,
+              booked: data.bookedTimes.length
+            }
+          }
+        } else {
+          // Fallback
+          availability[dateStr] = {
+            available: timeSlots.length,
             total: timeSlots.length,
-            booked: timeSlots.length,
-            isClosed: true
+            booked: 0
+          }
+        }
+      })
+    } catch (error) {
+      // Fallback to individual queries if batch fails
+      console.warn('Batch query failed, falling back to individual queries:', error)
+      const promises = dates.map(async (date) => {
+        const dateStr = format(date, 'yyyy-MM-dd')
+        try {
+          const response = await bookingsAPI.getAvailableTimes(barberId, dateStr)
+          const { availableTimes: times, bookedTimes: booked, isClosed } = response.data
+          
+          if (isClosed) {
+            return { dateStr, data: {
+              available: 0,
+              total: timeSlots.length,
+              booked: timeSlots.length,
+              isClosed: true
+            }}
+          }
+          
+          return { dateStr, data: {
+            available: times.length,
+            total: timeSlots.length,
+            booked: booked.length
+          }}
+        } catch (error) {
+          return { dateStr, data: {
+            available: timeSlots.length,
+            total: timeSlots.length,
+            booked: 0
           }}
         }
-        
-        return { dateStr, data: {
-          available: times.length,
-          total: timeSlots.length,
-          booked: booked.length
-        }}
-      } catch (error) {
-        // Default to all available if API fails
-        return { dateStr, data: {
-          available: timeSlots.length,
-          total: timeSlots.length,
-          booked: 0
-        }}
-      }
-    })
+      })
+      
+      const results = await Promise.allSettled(promises)
+      results.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          availability[result.value.dateStr] = result.value.data
+        }
+      })
+    }
     
-    const results = await Promise.allSettled(promises)
-    results.forEach((result, index) => {
-      if (result.status === 'fulfilled') {
-        availability[result.value.dateStr] = result.value.data
-      } else {
-        // Fallback for failed requests
-        const dateStr = format(dates[index], 'yyyy-MM-dd')
-        availability[dateStr] = {
-          available: timeSlots.length,
-          total: timeSlots.length,
-          booked: 0
+    setDateAvailability(availability)
+  }
+
+  // Manual refresh function
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      const dates = []
+      const today = new Date()
+      for (let i = 0; i < 14; i++) {
+        const date = addDays(today, i)
+        const dayOfWeek = date.getDay()
+        if (dayOfWeek !== 0) {
+          dates.push(date)
         }
       }
-    })
-    setDateAvailability(availability)
+      await loadDateAvailability(dates)
+      
+      if (selectedDate) {
+        await loadAvailableTimes()
+      }
+      
+      setLastRefresh(new Date())
+      setToast({ message: 'Bilgiler güncellendi', type: 'success' })
+    } catch (error) {
+      setToast({ message: 'Yenileme başarısız oldu', type: 'error' })
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   useEffect(() => {
@@ -223,55 +256,11 @@ function BookingPage() {
     }
   }, [selectedDate, barberId])
 
-  // Refresh available times periodically to get real-time updates
+  // Load available times when date is selected (no auto-refresh)
   useEffect(() => {
-    if (!selectedDate) return
-
-    // Immediate refresh on mount
-    loadAvailableTimes()
-    
-    const refreshData = () => {
-      loadAvailableTimes(true) // Skip loading state for periodic updates
-      // Also refresh date availability
-      const dates = []
-      const today = new Date()
-      for (let i = 0; i < 14; i++) {
-        const date = addDays(today, i)
-        const dayOfWeek = date.getDay()
-        if (dayOfWeek !== 0) {
-          dates.push(date)
-        }
-      }
-      loadDateAvailability(dates)
-    }
-
-    // Refresh every 2 seconds when page is visible
-    const interval = setInterval(() => {
-      // Only refresh if page is visible
-      if (!document.hidden) {
-        refreshData()
-      }
-    }, 2000) // Refresh every 2 seconds
-
-    // Refresh when page becomes visible
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        refreshData()
-      }
-    }
-
-    // Refresh when window gains focus
-    const handleFocus = () => {
-      refreshData()
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('focus', handleFocus)
-
-    return () => {
-      clearInterval(interval)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('focus', handleFocus)
+    if (selectedDate) {
+      loadAvailableTimes()
+      setBookedTimes([])
     }
   }, [selectedDate, barberId])
 
@@ -625,6 +614,19 @@ function BookingPage() {
             {t('booking.back')}
           </button>
           <h1>{barber.name} - {t('booking.bookAppointment')}</h1>
+          <button 
+            className="refresh-btn" 
+            onClick={handleRefresh}
+            disabled={refreshing}
+            title="Yenile"
+          >
+            <RefreshCw size={20} className={refreshing ? 'spinning' : ''} />
+            {lastRefresh && (
+              <span className="last-refresh">
+                {formatDistanceToNow(lastRefresh, { addSuffix: true, locale: tr })}
+              </span>
+            )}
+          </button>
         </div>
       </header>
 

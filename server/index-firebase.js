@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import { db } from './firebase-config.js';
 import { FieldValue } from 'firebase-admin/firestore';
-import { sendAdminNotificationEmail, sendBookingReminderEmail, sendCustomerConfirmationEmail } from './emailService.js';
+import { sendAdminNotificationEmail, sendBookingReminderEmail, sendCustomerConfirmationEmail, sendDailyReportEmail } from './emailService.js';
 
 dotenv.config();
 
@@ -16,9 +16,9 @@ const loginAttempts = {}; // { username: { count, lockUntil } }
 
 // In-memory cache for frequently accessed data (reduces Firestore reads)
 const cache = {
-  barbers: { data: null, timestamp: 0, ttl: 5 * 60 * 1000 }, // 5 minutes
-  services: { data: null, timestamp: 0, ttl: 5 * 60 * 1000 }, // 5 minutes
-  closedDates: { data: null, timestamp: 0, ttl: 1 * 60 * 1000 } // 1 minute
+  barbers: { data: null, timestamp: 0, ttl: 10 * 60 * 1000 }, // 10 minutes (increased from 5)
+  services: { data: null, timestamp: 0, ttl: 10 * 60 * 1000 }, // 10 minutes (increased from 5)
+  closedDates: { data: null, timestamp: 0, ttl: 5 * 60 * 1000 } // 5 minutes (increased from 1)
 };
 
 // Cache helper functions
@@ -322,11 +322,12 @@ async function initializeDatabase() {
     const servicesSnapshot = await db.collection('services').limit(1).get();
     if (servicesSnapshot.empty) {
       const defaultServices = [
-        { name: 'Saç Kesimi', duration: 30, price: 150, active: true },
-        { name: 'Saç ve Sakal', duration: 45, price: 200, active: true },
-        { name: 'Sakal', duration: 20, price: 100, active: true },
-        { name: 'Çocuk Tıraşı', duration: 25, price: 120, active: true },
-        { name: 'Bakım/Mask', duration: 30, price: 180, active: true }
+        { name: 'Saç & Sakal + Yıkama + Fön', duration: 60, price: 600, active: true },
+        { name: 'Saç Kesimi + Yıkama + Fön', duration: 45, price: 500, active: true },
+        { name: 'VIP Hizmet (Cilt bakımı, keratinli saç bakımı maskesi, profesyonel masaj)', duration: 120, price: 2500, active: true },
+        { name: 'Profesyonel Buharlı Cilt Bakımı', duration: 60, price: 500, active: true },
+        { name: 'Buharlı Keratinli Saç Bakımı Maskesi', duration: 60, price: 500, active: true },
+        { name: 'VIP House Tıraş', duration: 90, price: 5000, active: true }
       ];
 
       for (const service of defaultServices) {
@@ -481,8 +482,10 @@ app.get('/api/available-times', async (req, res) => {
     try {
       // Query by appointment_date first (most selective filter, no index needed)
       // Filter status and barber_id in memory to avoid index requirements
+      // Limit to 50 bookings per date to prevent excessive reads
       bookingsSnapshot = await db.collection('bookings')
         .where('appointment_date', '==', date)
+        .limit(50) // Max 50 bookings per date to save quota
         .get();
     } catch (error) {
       // If query fails, fall back to getting all (should rarely happen)
@@ -543,6 +546,127 @@ app.get('/api/available-times', async (req, res) => {
     res.json({ availableTimes, bookedTimes });
   } catch (error) {
     console.error('Error fetching available times:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Batch available times endpoint (optimized for multiple dates)
+app.get('/api/available-times-batch', async (req, res) => {
+  try {
+    const { barberId, dates } = req.query; // dates: "2024-01-01,2024-01-02,..."
+    
+    if (!barberId || !dates) {
+      return res.status(400).json({ error: 'barberId and dates are required' });
+    }
+
+    const dateArray = dates.split(',');
+    if (dateArray.length === 0 || dateArray.length > 14) {
+      return res.status(400).json({ error: 'Dates array must have 1-14 dates' });
+    }
+
+    // Check closed dates (use cache)
+    let closedDates = getCachedData('closedDates');
+    if (!closedDates) {
+      const closedDatesSnapshot = await db.collection('closed_dates').get();
+      closedDates = [];
+      closedDatesSnapshot.forEach(doc => {
+        closedDates.push(doc.data());
+      });
+      setCachedData('closedDates', closedDates);
+    }
+
+    const barberIdNum = parseInt(barberId, 10);
+    const barberIdStr = String(barberId);
+    
+    // Get all bookings for date range in single query
+    const startDate = dateArray[0];
+    const endDate = dateArray[dateArray.length - 1];
+    
+    let bookingsSnapshot;
+    try {
+      bookingsSnapshot = await db.collection('bookings')
+        .where('appointment_date', '>=', startDate)
+        .where('appointment_date', '<=', endDate)
+        .limit(200) // Max 200 bookings for all dates
+        .get();
+    } catch (error) {
+      console.error('Batch date query failed:', error.message);
+      return res.status(500).json({ 
+        error: 'Veritabanı sorgusu başarısız oldu.',
+        details: error.message 
+      });
+    }
+    
+    // Process results for each date
+    const result = {};
+    const allTimeSlots = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
+    const breakTimeSlots = ['16:00'];
+    
+    dateArray.forEach(date => {
+      // Check if date is closed
+      const selectedDate = new Date(date);
+      let isClosed = false;
+      let closedReason = '';
+      
+      closedDates.forEach(closedData => {
+        const startDate = new Date(closedData.start_date);
+        const endDate = new Date(closedData.end_date);
+        startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
+        selectedDate.setHours(0, 0, 0, 0);
+        
+        if (selectedDate >= startDate && selectedDate <= endDate) {
+          isClosed = true;
+          closedReason = closedData.reason || 'Tatil günü';
+        }
+      });
+      
+      if (isClosed) {
+        result[date] = {
+          availableTimes: [],
+          bookedTimes: [],
+          isClosed: true,
+          reason: closedReason
+        };
+        return;
+      }
+      
+      // Filter bookings for this date and barber
+      const bookedTimes = [];
+      bookingsSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.status === 'cancelled') return;
+        
+        const dataBarberId = data.barber_id;
+        const matchesBarber = dataBarberId === barberIdNum || 
+                             dataBarberId === barberIdStr || 
+                             String(dataBarberId) === String(barberIdNum) ||
+                             String(dataBarberId) === barberIdStr ||
+                             Number(dataBarberId) === barberIdNum;
+        
+        if (matchesBarber && data.appointment_date === date && data.appointment_time) {
+          const time = String(data.appointment_time).trim();
+          if (time && !bookedTimes.includes(time)) {
+            bookedTimes.push(time);
+          }
+        }
+      });
+      
+      const normalizedBookedTimes = bookedTimes.map(t => String(t).trim());
+      const availableTimes = allTimeSlots.filter(time => {
+        const normalizedTime = String(time).trim();
+        return !breakTimeSlots.includes(normalizedTime) && !normalizedBookedTimes.includes(normalizedTime);
+      });
+      
+      result[date] = {
+        availableTimes,
+        bookedTimes
+      };
+    });
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching batch available times:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -780,6 +904,131 @@ app.post('/api/bookings', async (req, res) => {
   }
 });
 
+// Create booking (admin-only, bypasses device token limit)
+app.post('/api/admin/bookings', verifyToken, async (req, res) => {
+  try {
+    const {
+      barberId,
+      barberName,
+      serviceName,
+      servicePrice,
+      customerName,
+      customerPhone,
+      customerEmail,
+      appointmentDate,
+      appointmentTime
+    } = req.body;
+
+    if (!barberId || !serviceName || !customerName || !customerPhone || !appointmentDate || !appointmentTime) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Check if time is during break time
+    const normalizedAppointmentTime = String(appointmentTime).trim();
+    const breakTimeSlots = ['16:00'];
+    if (breakTimeSlots.includes(normalizedAppointmentTime)) {
+      return res.status(400).json({ error: 'Bu saat yemek molası, randevu alınamaz.' });
+    }
+
+    // Check if time slot is available
+    const barberIdNum = parseInt(barberId, 10);
+    const barberIdStr = String(barberId);
+    
+    let isSlotBooked = false;
+    try {
+      let existingSnapshot = await db.collection('bookings')
+        .where('barber_id', '==', barberIdNum)
+        .get();
+
+      if (existingSnapshot.empty) {
+        existingSnapshot = await db.collection('bookings')
+          .where('barber_id', '==', barberIdStr)
+          .get();
+      }
+
+      existingSnapshot.forEach(doc => {
+        const data = doc.data();
+        const dataBarberId = data.barber_id;
+        const matchesBarber = dataBarberId === barberIdNum || 
+                             dataBarberId === barberIdStr || 
+                             String(dataBarberId) === barberIdStr ||
+                             Number(dataBarberId) === barberIdNum;
+        
+        if (matchesBarber &&
+            data.appointment_date === appointmentDate && 
+            data.appointment_time === appointmentTime && 
+            data.status !== 'cancelled') {
+          isSlotBooked = true;
+        }
+      });
+    } catch (error) {
+      console.error('Error checking slot availability:', error.message);
+      return res.status(500).json({ error: 'Randevu kontrolü yapılamadı. Lütfen tekrar deneyin.' });
+    }
+
+    if (isSlotBooked) {
+      return res.status(400).json({ error: 'Bu saat dilimi zaten dolu. Lütfen başka bir saat seçin.' });
+    }
+
+    // Create booking - admin bypasses device token limit
+    const bookingRef = await db.collection('bookings').add({
+      barber_id: barberIdNum,
+      barber_name: barberName,
+      service_name: serviceName,
+      service_price: servicePrice,
+      customer_name: customerName,
+      customer_phone: customerPhone,
+      customer_email: customerEmail || null,
+      appointment_date: appointmentDate,
+      appointment_time: appointmentTime,
+      device_token: null, // Admin bookings don't use device tokens
+      status: 'confirmed',
+      created_by_admin: true, // Flag to indicate admin-created booking
+      created_at: FieldValue.serverTimestamp(),
+      updated_at: FieldValue.serverTimestamp()
+    });
+
+    const bookingId = bookingRef.id;
+
+    // Send emails (async, don't block response)
+    if (customerEmail) {
+      sendCustomerConfirmationEmail({
+        customerName,
+        customerEmail,
+        customerPhone,
+        barberName,
+        serviceName,
+        servicePrice,
+        appointmentDate,
+        appointmentTime
+      }).catch(error => {
+        console.error('❌ Müşteri maili gönderilirken hata:', error.message);
+      });
+    }
+
+    sendAdminNotificationEmail({
+      customerName,
+      customerPhone,
+      customerEmail: customerEmail || null,
+      barberName,
+      serviceName,
+      servicePrice,
+      appointmentDate,
+      appointmentTime
+    }).catch(error => {
+      console.error('❌ Admin maili gönderilirken hata:', error.message);
+    });
+
+    res.status(201).json({
+      id: bookingId,
+      message: 'Randevu başarıyla oluşturuldu'
+    });
+  } catch (error) {
+    console.error('Error creating admin booking:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Send reminder notification (admin-only, manual trigger)
 app.post('/api/admin/bookings/:id/reminder', verifyToken, async (req, res) => {
   try {
@@ -961,8 +1210,8 @@ app.get('/api/admin/bookings', verifyToken, async (req, res) => {
     // Don't add barberId to query, filter in memory instead
 
     // OPTIMIZED: Add limit to prevent fetching too many documents (reduces Firestore reads)
-    // Default limit: 500 bookings (enough for admin panel, reduces quota usage)
-    const limit = parseInt(req.query.limit) || 500;
+    // Default limit: 100 bookings (reduced from 500 to save quota)
+    const limit = parseInt(req.query.limit) || 100;
     
     // Try to use orderBy, but if index is missing, fetch all and sort in memory
     let snapshot;
@@ -1086,8 +1335,29 @@ app.get('/api/admin/bookings', verifyToken, async (req, res) => {
 
     res.json(bookings);
   } catch (error) {
-    console.error('Error fetching bookings:', error);
-    res.status(500).json({ error: error.message });
+    console.error('[Admin Bookings] Error:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+      name: error.name
+    });
+    
+    // Firebase specific error handling
+    let errorMessage = error.message || 'Randevular yüklenirken bir hata oluştu';
+    
+    if (error.code === 'permission-denied' || error.code === 'PERMISSION_DENIED') {
+      errorMessage = 'Firebase izin hatası: Veritabanı erişim izinlerini kontrol edin';
+    } else if (error.code === 'unavailable' || error.code === 'UNAVAILABLE') {
+      errorMessage = 'Firebase servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin';
+    } else if (error.message && error.message.includes('index')) {
+      errorMessage = 'Firestore index eksik. Lütfen Firebase Console\'da index oluşturun';
+    }
+    
+    res.status(500).json({ 
+      error: errorMessage,
+      code: error.code || 'UNKNOWN_ERROR',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
@@ -1215,18 +1485,18 @@ app.get('/api/admin/stats', verifyToken, async (req, res) => {
     const stats = {};
 
     // OPTIMIZED: Limit stats calculation to reduce Firestore reads
-    // Only fetch bookings from last 90 days for stats (reduces quota usage significantly)
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    const ninetyDaysAgoStr = ninetyDaysAgo.toISOString().split('T')[0];
+    // Only fetch bookings from last 30 days for stats (reduced from 90 to save quota)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
     
     // Get bookings based on user's barber_id if showAll is not true
     let totalSnapshot;
     if (userBarberId && showAll !== 'true') {
       // OPTIMIZED: Query by date range instead of fetching all
       const allBookings = await db.collection('bookings')
-        .where('appointment_date', '>=', ninetyDaysAgoStr)
-        .limit(1000) // Max 1000 bookings for stats calculation
+        .where('appointment_date', '>=', thirtyDaysAgoStr)
+        .limit(200) // Max 200 bookings for stats calculation (reduced from 1000)
         .get();
       const filteredDocs = [];
       allBookings.forEach(doc => {
@@ -1248,10 +1518,13 @@ app.get('/api/admin/stats', verifyToken, async (req, res) => {
         forEach: (callback) => filteredDocs.forEach(callback) 
       };
     } else {
-      // OPTIMIZED: Limit to last 90 days and max 1000 bookings
+      // OPTIMIZED: Limit to last 30 days and max 200 bookings (reduced to save quota)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
       totalSnapshot = await db.collection('bookings')
-        .where('appointment_date', '>=', ninetyDaysAgoStr)
-        .limit(1000)
+        .where('appointment_date', '>=', thirtyDaysAgoStr)
+        .limit(200) // Reduced from 1000 to save quota
         .get();
     }
     
@@ -1518,7 +1791,15 @@ app.get('/api/admin/stats', verifyToken, async (req, res) => {
 
     res.json(stats);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[Admin Stats] Error:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    res.status(500).json({ 
+      error: error.message || 'İstatistikler yüklenirken bir hata oluştu',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
@@ -1527,9 +1808,21 @@ app.get('/api/admin/stats', verifyToken, async (req, res) => {
 // Get all closed date ranges
 app.get('/api/admin/closed-dates', verifyToken, async (req, res) => {
   try {
-    const snapshot = await db.collection('closed_dates')
-      .orderBy('start_date', 'asc')
-      .get();
+    let snapshot;
+    try {
+      // Try with orderBy first (requires index)
+      snapshot = await db.collection('closed_dates')
+        .orderBy('start_date', 'asc')
+        .get();
+    } catch (indexError) {
+      // If index error, fetch all and sort in memory
+      if (indexError.message && indexError.message.includes('index')) {
+        console.warn('[Closed Dates] Index missing, fetching all and sorting in memory');
+        snapshot = await db.collection('closed_dates').get();
+      } else {
+        throw indexError;
+      }
+    }
 
     const closedDates = [];
     snapshot.forEach(doc => {
@@ -1543,10 +1836,28 @@ app.get('/api/admin/closed-dates', verifyToken, async (req, res) => {
       });
     });
 
+    // Sort by start_date if fetched without orderBy
+    if (closedDates.length > 0 && !closedDates[0].start_date) {
+      // Already sorted by Firestore
+    } else {
+      closedDates.sort((a, b) => {
+        const dateA = new Date(a.start_date);
+        const dateB = new Date(b.start_date);
+        return dateA - dateB;
+      });
+    }
+
     res.json(closedDates);
   } catch (error) {
-    console.error('Error fetching closed dates:', error);
-    res.status(500).json({ error: error.message });
+    console.error('[Admin Closed Dates] Error:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    res.status(500).json({ 
+      error: error.message || 'Kapalı tarihler yüklenirken bir hata oluştu',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
@@ -1653,6 +1964,105 @@ app.delete('/api/admin/closed-dates/:id', verifyToken, async (req, res) => {
   }
 });
 
+// Update services to new prices (admin-only, one-time migration)
+app.post('/api/admin/update-services', verifyToken, async (req, res) => {
+  try {
+    const newServices = [
+      { name: 'Saç & Sakal + Yıkama + Fön', duration: 60, price: 600, active: true },
+      { name: 'Saç Kesimi + Yıkama + Fön', duration: 45, price: 500, active: true },
+      { name: 'VIP Hizmet (Cilt bakımı, keratinli saç bakımı maskesi, profesyonel masaj)', duration: 120, price: 2500, active: true },
+      { name: 'Profesyonel Buharlı Cilt Bakımı', duration: 60, price: 500, active: true },
+      { name: 'Buharlı Keratinli Saç Bakımı Maskesi', duration: 60, price: 500, active: true },
+      { name: 'VIP House Tıraş', duration: 90, price: 5000, active: true }
+    ];
+
+    console.log('🔄 Hizmetler güncelleniyor...');
+
+    // Mevcut tüm hizmetleri pasif yap
+    const existingSnapshot = await db.collection('services').get();
+    const updatePromises = [];
+    
+    existingSnapshot.forEach(doc => {
+      updatePromises.push(doc.ref.update({ active: false }));
+    });
+    
+    if (updatePromises.length > 0) {
+      await Promise.all(updatePromises);
+      console.log(`✅ ${updatePromises.length} eski hizmet pasif yapıldı`);
+    }
+
+    // Yeni hizmetleri ekle
+    const addPromises = newServices.map(service => {
+      return db.collection('services').add({
+        ...service,
+        created_at: FieldValue.serverTimestamp()
+      });
+    });
+
+    await Promise.all(addPromises);
+    console.log('✅ Yeni hizmetler eklendi');
+
+    // Cache'i temizle
+    clearCache('services');
+
+    res.json({ 
+      message: 'Hizmetler başarıyla güncellendi',
+      services: newServices
+    });
+  } catch (error) {
+    console.error('Error updating services:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Send daily report email (admin-only)
+app.post('/api/admin/daily-report', verifyToken, async (req, res) => {
+  try {
+    const { date } = req.body;
+
+    if (!date) {
+      return res.status(400).json({ error: 'Date is required' });
+    }
+
+    // Get all bookings for the selected date
+    const bookingsSnapshot = await db.collection('bookings')
+      .where('appointment_date', '==', date)
+      .get();
+
+    const bookings = [];
+    bookingsSnapshot.forEach(doc => {
+      const data = doc.data();
+      bookings.push({
+        id: doc.id,
+        barber_id: data.barber_id,
+        barber_name: data.barber_name,
+        service_name: data.service_name,
+        service_price: data.service_price,
+        customer_name: data.customer_name,
+        customer_phone: data.customer_phone,
+        customer_email: data.customer_email,
+        appointment_date: data.appointment_date,
+        appointment_time: data.appointment_time,
+        status: data.status
+      });
+    });
+
+    // Send email with all bookings
+    await sendDailyReportEmail({
+      date,
+      bookings
+    });
+
+    res.json({ 
+      message: 'Günlük rapor emaili gönderildi',
+      date,
+      totalBookings: bookings.length
+    });
+  } catch (error) {
+    console.error('Error sending daily report:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Clean up old bookings (older than 2 weeks)
 async function cleanupOldBookings() {

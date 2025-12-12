@@ -379,7 +379,10 @@ function AdminPage() {
     setLoadingAvailableTimes(true)
     try {
       const response = await adminAPI.getAvailableTimes(barberId, date)
-      setAvailableTimesForDate(response.data.availableTimes || [])
+      // Sadece müsait saatleri göster (dolu saatleri gösterme)
+      const availableTimes = response.data?.availableTimes || []
+      console.log('Available times loaded:', availableTimes)
+      setAvailableTimesForDate(availableTimes)
     } catch (error) {
       console.error('Load available times error:', error)
       setAvailableTimesForDate([])
@@ -485,22 +488,79 @@ function AdminPage() {
       return
     }
 
+    // Barbers yüklenmemişse kontrol et
+    if (Object.keys(barbers).length === 0) {
+      setToast({ message: 'Berberler yükleniyor, lütfen bekleyin...', type: 'error' })
+      return
+    }
+
     setCreatingBooking(true)
     try {
       const selectedBarber = barbers[createBookingForm.barberId]
+      
+      // Barber kontrolü
+      if (!selectedBarber) {
+        setToast({ message: 'Lütfen geçerli bir berber seçin', type: 'error' })
+        setCreatingBooking(false)
+        return
+      }
+      
       const selectedService = services.find(s => s.name === createBookingForm.serviceName)
       
-      await adminAPI.createBooking({
-        barberId: parseInt(createBookingForm.barberId),
-        barberName: selectedBarber.name,
-        serviceName: createBookingForm.serviceName,
-        servicePrice: selectedService ? selectedService.price : parseFloat(createBookingForm.servicePrice) || 0,
-        customerName: createBookingForm.customerName,
-        customerPhone: createBookingForm.customerPhone,
-        customerEmail: createBookingForm.customerEmail || null,
-        appointmentDate: createBookingForm.appointmentDate,
-        appointmentTime: createBookingForm.appointmentTime
+      // Service kontrolü
+      if (!selectedService) {
+        setToast({ message: 'Lütfen geçerli bir hizmet seçin', type: 'error' })
+        setCreatingBooking(false)
+        return
+      }
+      
+      // BarberId'yi number'a çevir
+      // Backend'de barber'ın id field'ı kullanılacak
+      // Eğer barber'ın numeric_id'si varsa onu kullan, yoksa id field'ını kullan
+      let barberIdValue = createBookingForm.barberId;
+      
+      // Backend'de barber'ın id field'ı (numeric) kullanılacak
+      // Frontend'den Firestore doc ID gönderiyoruz, backend bunu id field'ına çevirecek
+      // Ama eğer numeric_id varsa, onu kullan
+      if (selectedBarber.numeric_id) {
+        barberIdValue = selectedBarber.numeric_id;
+      } else if (selectedBarber.id && typeof selectedBarber.id === 'number') {
+        barberIdValue = selectedBarber.id;
+      } else {
+        // Firestore doc ID'yi gönder, backend bunu id field'ına çevirecek
+        barberIdValue = createBookingForm.barberId;
+      }
+      
+      console.log('[Admin Create Booking] Barber ID conversion:', {
+        original: createBookingForm.barberId,
+        selectedBarber: {
+          id: selectedBarber.id,
+          numeric_id: selectedBarber.numeric_id,
+          name: selectedBarber.name
+        },
+        final: barberIdValue,
+        finalType: typeof barberIdValue
       })
+
+      const bookingData = {
+        barberId: barberIdValue,
+        barberName: selectedBarber.name,
+        serviceName: createBookingForm.serviceName.trim(),
+        servicePrice: selectedService.price || parseFloat(createBookingForm.servicePrice) || 0,
+        customerName: createBookingForm.customerName.trim(),
+        customerPhone: createBookingForm.customerPhone.trim(),
+        customerEmail: createBookingForm.customerEmail ? createBookingForm.customerEmail.trim() : null,
+        appointmentDate: createBookingForm.appointmentDate.trim(),
+        appointmentTime: createBookingForm.appointmentTime.trim()
+      }
+
+      // Debug log
+      console.log('Sending booking data:', bookingData)
+      console.log('Form values:', createBookingForm)
+
+      const response = await adminAPI.createBooking(bookingData)
+      
+      console.log('Booking created response:', response.data)
 
       setToast({ message: 'Randevu başarıyla oluşturuldu', type: 'success' })
       setShowCreateBookingModal(false)
@@ -514,8 +574,16 @@ function AdminPage() {
         appointmentDate: '',
         appointmentTime: ''
       })
-      loadBookings()
-      loadStats()
+      
+      // Wait for bookings to reload before closing modal
+      // Force reload with current filters
+      await loadBookings(showAllBookings)
+      await loadStats()
+      
+      // Also clear any date filter if set, to show the new booking
+      if (filters.date) {
+        setFilters(prev => ({ ...prev, date: '' }))
+      }
     } catch (error) {
       const errorMsg = error.response?.data?.error || error.message || 'Randevu oluşturulamadı'
       setToast({ message: errorMsg, type: 'error' })

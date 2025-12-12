@@ -209,6 +209,7 @@ async function initializeDatabase() {
     if (barbersSnapshot.empty) {
       const defaultBarbers = [
         {
+          id: 1, // Add numeric id field
           name: 'Hıdır Yasin Gökçeoğlu',
           experience: '15+ Yıl Deneyim',
           specialty: 'Klasik & Modern Kesimler',
@@ -217,6 +218,7 @@ async function initializeDatabase() {
           created_at: FieldValue.serverTimestamp()
         },
         {
+          id: 2, // Add numeric id field
           name: 'Emir Gökçeoğlu',
           experience: '10+ Yıl Deneyim',
           specialty: 'Fade & Sakal Tasarımı',
@@ -231,6 +233,28 @@ async function initializeDatabase() {
       }
       clearCache('barbers'); // Clear cache when barbers are added
       console.log('Default barbers created');
+    } else {
+      // Update existing barbers to have id field if missing
+      const allBarbers = await db.collection('barbers').get();
+      const updatePromises = [];
+      let idCounter = 1;
+      
+      allBarbers.forEach(doc => {
+        const data = doc.data();
+        if (!data.id) {
+          updatePromises.push(
+            db.collection('barbers').doc(doc.id).update({
+              id: idCounter++
+            })
+          );
+        }
+      });
+      
+      if (updatePromises.length > 0) {
+        await Promise.all(updatePromises);
+        clearCache('barbers');
+        console.log(`Updated ${updatePromises.length} barbers with id field`);
+      }
     }
 
     // Check if admin users exist, if not create them
@@ -384,10 +408,22 @@ app.get('/api/barbers', async (req, res) => {
         .get();
       
       barbers = [];
+      let indexCounter = 1;
       snapshot.forEach(doc => {
+        const data = doc.data();
+        // Use data.id if exists, otherwise assign sequential number
+        let numericId = data.id;
+        if (!numericId || typeof numericId !== 'number') {
+          // If id doesn't exist or is not a number, assign sequential number
+          numericId = indexCounter++;
+        }
+        
+        // Store both Firestore doc ID and numeric ID
         barbers.push({
-          id: doc.id,
-          ...doc.data()
+          id: doc.id, // Firestore document ID (for frontend selection)
+          numeric_id: numericId, // Numeric ID (for barber_id in bookings)
+          ...data,
+          id: numericId // Override id field with numeric value for compatibility
         });
       });
       setCachedData('barbers', barbers);
@@ -499,6 +535,14 @@ app.get('/api/available-times', async (req, res) => {
     // Filter in memory for barber_id and status (date already filtered by query)
     const bookedTimes = [];
     
+    console.log('[Available Times] Checking bookings for barber:', {
+      barberId: barberId,
+      barberIdNum: barberIdNum,
+      barberIdStr: barberIdStr,
+      date: date,
+      totalBookings: bookingsSnapshot.size
+    });
+    
     bookingsSnapshot.forEach(doc => {
       const data = doc.data();
       
@@ -520,7 +564,25 @@ app.get('/api/available-times', async (req, res) => {
         const time = String(data.appointment_time).trim();
         if (time && !bookedTimes.includes(time)) {
           bookedTimes.push(time);
+          console.log('[Available Times] Found booked time:', {
+            time: time,
+            barber_id: dataBarberId,
+            barber_id_type: typeof dataBarberId,
+            created_by_admin: data.created_by_admin || false,
+            customer_name: data.customer_name
+          });
         }
+      } else if (data.appointment_time) {
+        // Debug: Log why booking was not matched
+        console.log('[Available Times] Booking not matched:', {
+          dataBarberId: dataBarberId,
+          dataBarberIdType: typeof dataBarberId,
+          barberIdNum: barberIdNum,
+          barberIdStr: barberIdStr,
+          matchesBarber: matchesBarber,
+          appointment_time: data.appointment_time,
+          created_by_admin: data.created_by_admin || false
+        });
       }
     });
     
@@ -542,6 +604,13 @@ app.get('/api/available-times', async (req, res) => {
       // Exclude break time slots and booked times
       return !breakTimeSlots.includes(normalizedTime) && !normalizedBookedTimes.includes(normalizedTime);
     });
+    
+    // Debug log for admin panel
+    if (req.query.debug || req.headers['x-debug']) {
+      console.log(`[Available Times] Barber: ${barberId}, Date: ${date}`);
+      console.log(`[Available Times] Booked times:`, bookedTimes);
+      console.log(`[Available Times] Available times:`, availableTimes);
+    }
     
     res.json({ availableTimes, bookedTimes });
   } catch (error) {
@@ -907,7 +976,7 @@ app.post('/api/bookings', async (req, res) => {
 // Create booking (admin-only, bypasses device token limit)
 app.post('/api/admin/bookings', verifyToken, async (req, res) => {
   try {
-    const {
+    let {
       barberId,
       barberName,
       serviceName,
@@ -919,8 +988,90 @@ app.post('/api/admin/bookings', verifyToken, async (req, res) => {
       appointmentTime
     } = req.body;
 
-    if (!barberId || !serviceName || !customerName || !customerPhone || !appointmentDate || !appointmentTime) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    // Detailed validation with logging
+    const missingFields = [];
+    if (!barberId || (typeof barberId === 'string' && barberId.trim() === '')) {
+      missingFields.push('barberId');
+    }
+    if (!serviceName || (typeof serviceName === 'string' && serviceName.trim() === '')) {
+      missingFields.push('serviceName');
+    }
+    if (!customerName || (typeof customerName === 'string' && customerName.trim() === '')) {
+      missingFields.push('customerName');
+    }
+    if (!customerPhone || (typeof customerPhone === 'string' && customerPhone.trim() === '')) {
+      missingFields.push('customerPhone');
+    }
+    if (!appointmentDate || (typeof appointmentDate === 'string' && appointmentDate.trim() === '')) {
+      missingFields.push('appointmentDate');
+    }
+    if (!appointmentTime || (typeof appointmentTime === 'string' && appointmentTime.trim() === '')) {
+      missingFields.push('appointmentTime');
+    }
+
+    if (missingFields.length > 0) {
+      console.error('[Admin Create Booking] Missing fields:', missingFields);
+      console.error('[Admin Create Booking] Received data:', {
+        barberId: barberId ? String(barberId) : 'MISSING',
+        serviceName: serviceName || 'MISSING',
+        customerName: customerName || 'MISSING',
+        customerPhone: customerPhone || 'MISSING',
+        appointmentDate: appointmentDate || 'MISSING',
+        appointmentTime: appointmentTime || 'MISSING'
+      });
+      return res.status(400).json({ 
+        error: 'Missing required fields',
+        missingFields: missingFields
+      });
+    }
+
+    // Eğer barberName gönderilmemişse, barberId'den çek
+    if (!barberName && barberId) {
+      try {
+        const barberIdNum = parseInt(barberId, 10);
+        const barberIdStr = String(barberId);
+        
+        // Try by ID first
+        let barberDoc = await db.collection('barbers').doc(barberIdStr).get();
+        if (!barberDoc.exists) {
+          // Try finding by ID in collection
+          const barberSnapshot = await db.collection('barbers')
+            .where('id', '==', barberIdNum)
+            .limit(1)
+            .get();
+          
+          if (!barberSnapshot.empty) {
+            barberDoc = barberSnapshot.docs[0];
+          } else {
+            // Try finding by ID as string
+            const barberSnapshot2 = await db.collection('barbers')
+              .where('id', '==', barberIdStr)
+              .limit(1)
+              .get();
+            
+            if (!barberSnapshot2.empty) {
+              barberDoc = barberSnapshot2.docs[0];
+            }
+          }
+        }
+        
+        if (barberDoc.exists) {
+          barberName = barberDoc.data().name;
+        } else {
+          // Fallback: get all barbers and find by ID
+          const allBarbers = await db.collection('barbers').get();
+          allBarbers.forEach(doc => {
+            const data = doc.data();
+            const dataId = data.id || doc.id;
+            if (dataId === barberIdNum || dataId === barberIdStr || String(dataId) === barberIdStr || Number(dataId) === barberIdNum) {
+              barberName = data.name;
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching barber name:', error);
+        // Continue without barberName, will use barberId
+      }
     }
 
     // Check if time is during break time
@@ -936,15 +1087,10 @@ app.post('/api/admin/bookings', verifyToken, async (req, res) => {
     
     let isSlotBooked = false;
     try {
+      // Query by date first to reduce reads
       let existingSnapshot = await db.collection('bookings')
-        .where('barber_id', '==', barberIdNum)
+        .where('appointment_date', '==', appointmentDate)
         .get();
-
-      if (existingSnapshot.empty) {
-        existingSnapshot = await db.collection('bookings')
-          .where('barber_id', '==', barberIdStr)
-          .get();
-      }
 
       existingSnapshot.forEach(doc => {
         const data = doc.data();
@@ -955,7 +1101,6 @@ app.post('/api/admin/bookings', verifyToken, async (req, res) => {
                              Number(dataBarberId) === barberIdNum;
         
         if (matchesBarber &&
-            data.appointment_date === appointmentDate && 
             data.appointment_time === appointmentTime && 
             data.status !== 'cancelled') {
           isSlotBooked = true;
@@ -971,8 +1116,84 @@ app.post('/api/admin/bookings', verifyToken, async (req, res) => {
     }
 
     // Create booking - admin bypasses device token limit
-    const bookingRef = await db.collection('bookings').add({
-      barber_id: barberIdNum,
+    // IMPORTANT: Store barber_id as the same format used in normal bookings
+    // First, try to get the barber's numeric id from database
+    let finalBarberId = barberIdNum;
+    
+    // If barberId is not a number, it's likely a Firestore doc ID
+    // Find the barber and get its numeric id field (if exists)
+    if (isNaN(barberIdNum)) {
+      try {
+        // Try by document ID first
+        const barberDoc = await db.collection('barbers').doc(barberIdStr).get();
+        if (barberDoc.exists) {
+          const barberData = barberDoc.data();
+          // If barber has id field, use it
+          if (barberData.id !== undefined) {
+            if (typeof barberData.id === 'number') {
+              finalBarberId = barberData.id;
+            } else if (typeof barberData.id === 'string') {
+              const parsed = parseInt(barberData.id, 10);
+              finalBarberId = isNaN(parsed) ? barberIdNum : parsed;
+            }
+          } else {
+            // Barber doesn't have id field - use document index as fallback
+            // Get all barbers and find index
+            const allBarbers = await db.collection('barbers').get();
+            let index = 1;
+            let found = false;
+            allBarbers.forEach((doc, idx) => {
+              if (doc.id === barberIdStr) {
+                finalBarberId = index;
+                found = true;
+              }
+              index++;
+            });
+            if (!found) {
+              finalBarberId = 1; // Ultimate fallback
+            }
+          }
+        } else {
+          // Try to find by id field (if barberId was actually a number string)
+          const parsedId = parseInt(barberIdStr, 10);
+          if (!isNaN(parsedId)) {
+            const barberQuery = await db.collection('barbers')
+              .where('id', '==', parsedId)
+              .limit(1)
+              .get();
+            if (!barberQuery.empty) {
+              const barberData = barberQuery.docs[0].data();
+              finalBarberId = barberData.id || parsedId;
+            } else {
+              finalBarberId = parsedId;
+            }
+          } else {
+            console.error('[Admin Create Booking] Cannot find barber with ID:', barberIdStr);
+            finalBarberId = 1; // Fallback
+          }
+        }
+      } catch (error) {
+        console.error('[Admin Create Booking] Error fetching barber id:', error);
+        finalBarberId = 1; // Fallback
+      }
+    }
+    
+    // Ensure finalBarberId is a number
+    if (typeof finalBarberId !== 'number' || isNaN(finalBarberId)) {
+      const parsed = parseInt(String(finalBarberId), 10);
+      finalBarberId = isNaN(parsed) ? 1 : parsed;
+    }
+    
+    console.log('[Admin Create Booking] Final barber_id:', {
+      original: barberId,
+      barberIdNum: barberIdNum,
+      barberIdStr: barberIdStr,
+      final: finalBarberId,
+      finalType: typeof finalBarberId
+    });
+    
+    const bookingData = {
+      barber_id: finalBarberId,
       barber_name: barberName,
       service_name: serviceName,
       service_price: servicePrice,
@@ -983,12 +1204,40 @@ app.post('/api/admin/bookings', verifyToken, async (req, res) => {
       appointment_time: appointmentTime,
       device_token: null, // Admin bookings don't use device tokens
       status: 'confirmed',
-      created_by_admin: true, // Flag to indicate admin-created booking
+      created_by_admin: req.user?.username || 'unknown', // Store admin username
       created_at: FieldValue.serverTimestamp(),
       updated_at: FieldValue.serverTimestamp()
+    };
+
+    console.log('[Admin Create Booking] Creating booking with data:', {
+      barber_id: bookingData.barber_id,
+      barber_id_type: typeof bookingData.barber_id,
+      barber_name: bookingData.barber_name,
+      appointment_date: bookingData.appointment_date,
+      appointment_time: bookingData.appointment_time,
+      customer_name: bookingData.customer_name,
+      original_barberId: barberId,
+      barberIdNum: barberIdNum,
+      barberIdStr: barberIdStr
     });
 
+    const bookingRef = await db.collection('bookings').add(bookingData);
+
     const bookingId = bookingRef.id;
+    console.log('[Admin Create Booking] Booking created with ID:', bookingId);
+    
+    // Verify booking was created by reading it back
+    const createdBooking = await bookingRef.get();
+    if (createdBooking.exists) {
+      console.log('[Admin Create Booking] Booking verified in database:', {
+        id: createdBooking.id,
+        barber_id: createdBooking.data().barber_id,
+        appointment_date: createdBooking.data().appointment_date,
+        appointment_time: createdBooking.data().appointment_time
+      });
+    } else {
+      console.error('[Admin Create Booking] ERROR: Booking was not created!');
+    }
 
     // Send emails (async, don't block response)
     if (customerEmail) {
@@ -1192,7 +1441,15 @@ app.get('/api/admin/bookings', verifyToken, async (req, res) => {
     // Safely get barber_id from JWT token
     const userBarberId = req.user?.barber_id || null;
     
-    let query = db.collection('bookings');
+    console.log('[Admin Bookings] Request params:', {
+      status,
+      barberId,
+      date,
+      showAll,
+      showAllType: typeof showAll,
+      showAllValue: showAll,
+      userBarberId
+    });
 
     // Apply filters
     // Note: We'll apply filters in memory to avoid index issues
@@ -1210,8 +1467,8 @@ app.get('/api/admin/bookings', verifyToken, async (req, res) => {
     // Don't add barberId to query, filter in memory instead
 
     // OPTIMIZED: Add limit to prevent fetching too many documents (reduces Firestore reads)
-    // Default limit: 100 bookings (reduced from 500 to save quota)
-    const limit = parseInt(req.query.limit) || 100;
+    // Default limit: 200 bookings (increased to see more)
+    const limit = parseInt(req.query.limit) || 200;
     
     // Try to use orderBy, but if index is missing, fetch all and sort in memory
     let snapshot;
@@ -1230,9 +1487,13 @@ app.get('/api/admin/bookings', verifyToken, async (req, res) => {
       }
     }
 
+    console.log('[Admin Bookings] Total documents from Firestore:', snapshot.size);
+
     const bookings = [];
     const now = new Date();
     const updatePromises = [];
+    let skippedCount = 0;
+    let skippedReasons = {};
     
     for (const doc of snapshot.docs) {
       const data = doc.data();
@@ -1242,29 +1503,59 @@ app.get('/api/admin/bookings', verifyToken, async (req, res) => {
         const dataBarberId = data.barber_id;
         const filterBarberIdNum = parseInt(barberId, 10);
         const filterBarberIdStr = String(barberId);
-        const matchesFilterBarber = dataBarberId === filterBarberIdNum || 
-                                   dataBarberId === filterBarberIdStr || 
-                                   String(dataBarberId) === filterBarberIdStr ||
-                                   Number(dataBarberId) === filterBarberIdNum;
+        // More flexible matching - try all combinations
+        const matchesFilterBarber = 
+          dataBarberId === filterBarberIdNum || 
+          dataBarberId === filterBarberIdStr || 
+          String(dataBarberId) === filterBarberIdStr ||
+          String(dataBarberId) === String(filterBarberIdNum) ||
+          Number(dataBarberId) === filterBarberIdNum ||
+          Number(dataBarberId) === Number(filterBarberIdStr);
         
         if (!matchesFilterBarber) {
+          skippedCount++;
+          skippedReasons['barberId_filter'] = (skippedReasons['barberId_filter'] || 0) + 1;
           continue; // Skip this booking
         }
       }
       
       // Filter by user's barber_id if showAll is not true
-      if (userBarberId && showAll !== 'true') {
+      // IMPORTANT: If showAll is true, show all bookings regardless of barber_id
+      // Also, if barberId filter is provided, it takes precedence over userBarberId
+      if (!barberId && userBarberId && showAll !== 'true' && showAll !== true) {
         const dataBarberId = data.barber_id;
         const userBarberIdNum = parseInt(userBarberId, 10);
         const userBarberIdStr = String(userBarberId);
-        const matchesBarber = dataBarberId === userBarberIdNum || 
-                             dataBarberId === userBarberIdStr || 
-                             String(dataBarberId) === userBarberIdStr ||
-                             Number(dataBarberId) === userBarberIdNum;
+        // More flexible matching
+        const matchesBarber = 
+          dataBarberId === userBarberIdNum || 
+          dataBarberId === userBarberIdStr || 
+          String(dataBarberId) === userBarberIdStr ||
+          String(dataBarberId) === String(userBarberIdNum) ||
+          Number(dataBarberId) === userBarberIdNum ||
+          Number(dataBarberId) === Number(userBarberIdStr);
         
         if (!matchesBarber) {
+          skippedCount++;
+          skippedReasons['userBarberId_filter'] = (skippedReasons['userBarberId_filter'] || 0) + 1;
           continue; // Skip this booking
         }
+      }
+      
+      // Debug: Log first few bookings
+      if (bookings.length < 5) {
+        console.log('[Admin Bookings] Including booking:', {
+          id: doc.id,
+          barber_id: data.barber_id,
+          barber_id_type: typeof data.barber_id,
+          appointment_date: data.appointment_date,
+          customer_name: data.customer_name,
+          created_by_admin: data.created_by_admin || false,
+          showAll: showAll,
+          showAllType: typeof showAll,
+          userBarberId: userBarberId,
+          filterBarberId: barberId
+        });
       }
       
       // Auto-complete past appointments that are still confirmed
@@ -1332,6 +1623,30 @@ app.get('/api/admin/bookings', verifyToken, async (req, res) => {
         return b.appointment_time.localeCompare(a.appointment_time);
       });
     }
+
+    // Debug log
+    console.log('[Admin Bookings] Summary:', {
+      totalFromFirestore: snapshot.size,
+      totalReturned: bookings.length,
+      skipped: skippedCount,
+      skippedReasons: skippedReasons,
+      showAll: showAll,
+      showAllType: typeof showAll,
+      showAllIsTrue: showAll === 'true' || showAll === true,
+      userBarberId: userBarberId,
+      filterBarberId: barberId,
+      status: req.query.status,
+      date: req.query.date
+    });
+    
+    console.log('[Admin Bookings] Sample bookings:', bookings.slice(0, 5).map(b => ({
+      id: b.id,
+      barber_id: b.barber_id,
+      barber_id_type: typeof b.barber_id,
+      appointment_date: b.appointment_date,
+      customer_name: b.customer_name,
+      created_by_admin: b.created_by_admin || false
+    })));
 
     res.json(bookings);
   } catch (error) {

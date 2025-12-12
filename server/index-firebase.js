@@ -718,8 +718,24 @@ app.post('/api/bookings', async (req, res) => {
         servicePrice,
         appointmentDate,
         appointmentTime
+      }).then(result => {
+        if (result && result.body && result.body.Messages && result.body.Messages[0]) {
+          const messageStatus = result.body.Messages[0];
+          if (messageStatus.Status === 'success') {
+            console.log('✅ Müşteri emaili Mailjet\'e başarıyla gönderildi:', customerEmail);
+            console.log('   MessageID:', messageStatus.To[0]?.MessageID || 'N/A');
+          } else {
+            console.warn('⚠️ Müşteri emaili gönderilemedi. Durum:', messageStatus.Status);
+            if (messageStatus.Errors) {
+              console.error('   Hatalar:', JSON.stringify(messageStatus.Errors, null, 2));
+            }
+          }
+        }
       }).catch(error => {
         console.error('❌ Müşteri maili gönderilirken hata:', error.message);
+        if (error.response) {
+          console.error('   Mailjet Response:', JSON.stringify(error.response.body, null, 2));
+        }
       });
     }
 
@@ -734,8 +750,17 @@ app.post('/api/bookings', async (req, res) => {
       appointmentDate,
       appointmentTime
     }).then(result => {
-      if (result) {
-        console.log('✅ Admin bildirim maili gönderildi:', process.env.ADMIN_EMAIL);
+      if (result && result.body && result.body.Messages && result.body.Messages[0]) {
+        const messageStatus = result.body.Messages[0];
+        if (messageStatus.Status === 'success') {
+          console.log('✅ Admin bildirim maili Mailjet\'e başarıyla gönderildi:', process.env.ADMIN_EMAIL);
+          console.log('   MessageID:', messageStatus.To[0]?.MessageID || 'N/A');
+        } else {
+          console.warn('⚠️ Admin bildirim maili gönderilemedi. Durum:', messageStatus.Status);
+          if (messageStatus.Errors) {
+            console.error('   Hatalar:', JSON.stringify(messageStatus.Errors, null, 2));
+          }
+        }
       } else {
         console.warn('⚠️ Admin bildirim maili gönderilemedi. Mailjet yapılandırmasını kontrol edin.');
       }

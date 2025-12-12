@@ -143,11 +143,31 @@ export const sendCustomerConfirmationEmail = async (bookingData) => {
     });
 
     const result = await request;
+    
+    // Log detailed response
+    if (result && result.body) {
+      console.log('📧 Müşteri Mailjet Response:', JSON.stringify(result.body, null, 2));
+      if (result.body.Messages && result.body.Messages[0]) {
+        const messageStatus = result.body.Messages[0];
+        if (messageStatus.Status === 'success') {
+          console.log('✅ Müşteri emaili başarıyla Mailjet\'e gönderildi. MessageID:', messageStatus.To[0]?.MessageID || 'N/A');
+        } else {
+          console.warn('⚠️ Müşteri email gönderim durumu:', messageStatus.Status);
+          if (messageStatus.Errors) {
+            console.error('❌ Mailjet Hataları:', JSON.stringify(messageStatus.Errors, null, 2));
+          }
+        }
+      }
+    }
+    
     return result;
   } catch (error) {
     console.error('❌ Müşteriye mail gönderilirken hata:', error.message);
     if (error.response) {
-      console.error('   Mailjet Response:', JSON.stringify(error.response.body, null, 2));
+      console.error('   Mailjet Error Response:', JSON.stringify(error.response.body, null, 2));
+    }
+    if (error.statusCode) {
+      console.error('   Status Code:', error.statusCode);
     }
     return null;
   }
@@ -274,11 +294,31 @@ export const sendAdminNotificationEmail = async (bookingData) => {
     });
 
     const result = await request;
+    
+    // Log detailed response
+    if (result && result.body) {
+      console.log('📧 Mailjet Response:', JSON.stringify(result.body, null, 2));
+      if (result.body.Messages && result.body.Messages[0]) {
+        const messageStatus = result.body.Messages[0];
+        if (messageStatus.Status === 'success') {
+          console.log('✅ Email başarıyla Mailjet\'e gönderildi. MessageID:', messageStatus.To[0]?.MessageID || 'N/A');
+        } else {
+          console.warn('⚠️ Email gönderim durumu:', messageStatus.Status);
+          if (messageStatus.Errors) {
+            console.error('❌ Mailjet Hataları:', JSON.stringify(messageStatus.Errors, null, 2));
+          }
+        }
+      }
+    }
+    
     return result;
   } catch (error) {
     console.error('❌ Admin\'e mail gönderilirken hata:', error.message);
     if (error.response) {
-      console.error('   Mailjet Response:', JSON.stringify(error.response.body, null, 2));
+      console.error('   Mailjet Error Response:', JSON.stringify(error.response.body, null, 2));
+    }
+    if (error.statusCode) {
+      console.error('   Status Code:', error.statusCode);
     }
     return null;
   }

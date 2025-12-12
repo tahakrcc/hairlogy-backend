@@ -77,6 +77,7 @@ app.get('/api/email-config', (req, res) => {
   const hasApiKey = !!process.env.MAILJET_API_KEY;
   const hasApiSecret = !!process.env.MAILJET_API_SECRET;
   const hasAdminEmail = !!process.env.ADMIN_EMAIL;
+  const adminEmail = process.env.ADMIN_EMAIL || '❌ Ayarlanmamış';
   const fromEmail = process.env.FROM_EMAIL || 'noreply@hairologyyasinpremiumrandevu.com' || process.env.ADMIN_EMAIL;
   
   const config = {
@@ -86,11 +87,16 @@ app.get('/api/email-config', (req, res) => {
       configured: hasApiKey && hasApiSecret
     },
     emails: {
-      adminEmail: process.env.ADMIN_EMAIL || '❌ Ayarlanmamış',
+      adminEmail: adminEmail,
       fromEmail: fromEmail || '❌ Ayarlanmamış',
       fromName: process.env.FROM_NAME || 'Hairlogy Yasin Premium'
     },
-    status: hasApiKey && hasApiSecret && hasAdminEmail && fromEmail ? '✅ Yapılandırılmış' : '⚠️ Eksik ayarlar var'
+    status: hasApiKey && hasApiSecret && hasAdminEmail && fromEmail ? '✅ Yapılandırılmış' : '⚠️ Eksik ayarlar var',
+    // Debug info (sadece ilk 3 karakteri göster, güvenlik için)
+    debug: {
+      adminEmailPreview: adminEmail !== '❌ Ayarlanmamış' ? adminEmail.substring(0, 3) + '***' : '❌',
+      fromEmailPreview: fromEmail ? fromEmail.substring(0, 3) + '***' : '❌'
+    }
   };
   
   res.json(config);
@@ -681,6 +687,7 @@ app.post('/api/bookings', async (req, res) => {
       });
     }
 
+    // Admin'e bildirim gönder (asenkron, hata olsa bile randevu oluşturulur)
     sendAdminNotificationEmail({
       customerName,
       customerPhone,
@@ -690,8 +697,17 @@ app.post('/api/bookings', async (req, res) => {
       servicePrice,
       appointmentDate,
       appointmentTime
+    }).then(result => {
+      if (result) {
+        console.log('✅ Admin bildirim maili gönderildi:', process.env.ADMIN_EMAIL);
+      } else {
+        console.warn('⚠️ Admin bildirim maili gönderilemedi. Mailjet yapılandırmasını kontrol edin.');
+      }
     }).catch(error => {
       console.error('❌ Admin maili gönderilirken hata:', error.message);
+      if (error.response) {
+        console.error('   Mailjet Response:', JSON.stringify(error.response.body, null, 2));
+      }
     });
 
     res.status(201).json({

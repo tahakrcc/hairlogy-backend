@@ -134,19 +134,19 @@ function AdminPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault()
-    
+
     // Form validasyonu
     if (!loginForm.username || !loginForm.password) {
       setToast({ message: 'Lütfen kullanıcı adı ve şifre girin.', type: 'error' })
       return
     }
-    
+
     // Loading state ekle
     setLoginLoading(true)
-    
+
     try {
       const response = await adminAPI.login(loginForm.username, loginForm.password)
-      
+
       if (response && response.data && response.data.token) {
         localStorage.setItem('adminToken', response.data.token)
         localStorage.setItem('adminUsername', response.data.username)
@@ -178,7 +178,7 @@ function AdminPage() {
         errorCode: error.code || error.response?.data?.code,
         errorDetails: error.response?.data
       }
-      
+
       // Better error logging
       console.error('Login error:', {
         message: error.message,
@@ -189,7 +189,7 @@ function AdminPage() {
         url: error.config?.url,
         fullError: error
       })
-      
+
       // Hata mesajını belirle
       let errorMessage = 'Giriş başarısız'
       const errorStatus = error.response?.status
@@ -214,62 +214,62 @@ function AdminPage() {
 
       // CORS hatası kontrolü
       if (error.message?.includes('CORS') || error.message?.includes('Access-Control-Allow-Origin') || error.message?.includes('blocked by CORS')) {
-        setToast({ 
-          message: 'CORS hatası: Backend CORS ayarlarını kontrol edin. Backend\'in frontend domain\'ini allow list\'ine eklemesi gerekiyor.', 
-          type: 'error' 
+        setToast({
+          message: 'CORS hatası: Backend CORS ayarlarını kontrol edin. Backend\'in frontend domain\'ini allow list\'ine eklemesi gerekiyor.',
+          type: 'error'
         })
-      } 
+      }
       // Network hatası
       else if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error') || error.code === 'ERR_NETWORK' || error.message?.includes('Failed to fetch')) {
         if (requestUrl.includes('your-backend-url.com')) {
-          setToast({ 
-            message: 'Backend URL yapılandırılmamış! Netlify Dashboard\'dan VITE_API_URL environment variable\'ını ekleyin.', 
-            type: 'error' 
+          setToast({
+            message: 'Backend URL yapılandırılmamış! Netlify Dashboard\'dan VITE_API_URL environment variable\'ını ekleyin.',
+            type: 'error'
           })
         } else {
-          setToast({ 
-            message: 'Backend sunucusuna bağlanılamıyor. Lütfen backend\'in çalıştığından emin olun.', 
-            type: 'error' 
+          setToast({
+            message: 'Backend sunucusuna bağlanılamıyor. Lütfen backend\'in çalıştığından emin olun.',
+            type: 'error'
           })
         }
-      } 
+      }
       // 404 Not Found - Backend endpoint bulunamadı
       else if (errorStatus === 404) {
-        setToast({ 
-          message: 'Backend API endpoint bulunamadı. Backend URL\'ini kontrol edin veya Netlify\'da VITE_API_URL environment variable\'ını ayarlayın.', 
-          type: 'error' 
+        setToast({
+          message: 'Backend API endpoint bulunamadı. Backend URL\'ini kontrol edin veya Netlify\'da VITE_API_URL environment variable\'ını ayarlayın.',
+          type: 'error'
         })
       }
       // 401 Unauthorized - Kullanıcı adı veya şifre hatalı
       else if (errorStatus === 401) {
-        setToast({ 
-          message: 'Kullanıcı adı veya şifre hatalı. Lütfen tekrar deneyin.', 
-          type: 'error' 
+        setToast({
+          message: 'Kullanıcı adı veya şifre hatalı. Lütfen tekrar deneyin.',
+          type: 'error'
         })
         // Şifreyi temizle
         setLoginForm(prev => ({ ...prev, password: '' }))
-      } 
+      }
       // 400 Bad Request
       else if (errorStatus === 400) {
-        setToast({ 
-          message: errorMessage || 'Kullanıcı adı ve şifre gereklidir.', 
-          type: 'error' 
+        setToast({
+          message: errorMessage || 'Kullanıcı adı ve şifre gereklidir.',
+          type: 'error'
         })
       }
       // 429 Too Many Requests
       else if (errorStatus === 429) {
-        setToast({ 
-          message: errorMessage || 'Çok fazla deneme yapıldı. Lütfen birkaç dakika sonra tekrar deneyin.', 
-          type: 'error' 
+        setToast({
+          message: errorMessage || 'Çok fazla deneme yapıldı. Lütfen birkaç dakika sonra tekrar deneyin.',
+          type: 'error'
         })
-      } 
+      }
       // 500 Server Error
       else if (errorStatus === 500) {
         // Backend'den gelen detaylı hata mesajını göster
         const serverError = errorData?.error || errorMessage
-        setToast({ 
-          message: serverError || 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.', 
-          type: 'error' 
+        setToast({
+          message: serverError || 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.',
+          type: 'error'
         })
       }
       // Diğer hatalar
@@ -279,9 +279,9 @@ function AdminPage() {
         if (errorMessage.length <= 3 || errorMessage === 'FA' || errorMessage === 'FA') {
           displayMessage = 'Giriş yapılamadı. Lütfen bilgilerinizi kontrol edin ve tekrar deneyin.'
         }
-        setToast({ 
-          message: displayMessage, 
-          type: 'error' 
+        setToast({
+          message: displayMessage,
+          type: 'error'
         })
       }
     } finally {
@@ -327,8 +327,12 @@ function AdminPage() {
       const response = await adminAPI.getStats()
       setStats(response.data)
     } catch (error) {
-      console.error('Load stats error:', error)
-      // Don't show toast for stats errors, just log
+      console.error('Load stats error:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        url: error.config?.url
+      })
       if (error.response?.status === 401) {
         handleLogout()
       }
@@ -340,8 +344,12 @@ function AdminPage() {
       const response = await adminAPI.getClosedDates()
       setClosedDates(response.data)
     } catch (error) {
-      console.error('Load closed dates error:', error)
-      // Don't show toast for closed dates errors, just log
+      console.error('Load closed dates error:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        url: error.config?.url
+      })
       if (error.response?.status === 401) {
         handleLogout()
       }
@@ -481,9 +489,9 @@ function AdminPage() {
 
   const handleCreateBooking = async (e) => {
     e.preventDefault()
-    
-    if (!createBookingForm.barberId || !createBookingForm.serviceName || !createBookingForm.customerName || 
-        !createBookingForm.customerPhone || !createBookingForm.appointmentDate || !createBookingForm.appointmentTime) {
+
+    if (!createBookingForm.barberId || !createBookingForm.serviceName || !createBookingForm.customerName ||
+      !createBookingForm.customerPhone || !createBookingForm.appointmentDate || !createBookingForm.appointmentTime) {
       setToast({ message: 'Lütfen tüm zorunlu alanları doldurun', type: 'error' })
       return
     }
@@ -497,28 +505,28 @@ function AdminPage() {
     setCreatingBooking(true)
     try {
       const selectedBarber = barbers[createBookingForm.barberId]
-      
+
       // Barber kontrolü
       if (!selectedBarber) {
         setToast({ message: 'Lütfen geçerli bir berber seçin', type: 'error' })
         setCreatingBooking(false)
         return
       }
-      
+
       const selectedService = services.find(s => s.name === createBookingForm.serviceName)
-      
+
       // Service kontrolü
       if (!selectedService) {
         setToast({ message: 'Lütfen geçerli bir hizmet seçin', type: 'error' })
         setCreatingBooking(false)
         return
       }
-      
+
       // BarberId'yi number'a çevir
       // Backend'de barber'ın id field'ı kullanılacak
       // Eğer barber'ın numeric_id'si varsa onu kullan, yoksa id field'ını kullan
       let barberIdValue = createBookingForm.barberId;
-      
+
       // Backend'de barber'ın id field'ı (numeric) kullanılacak
       // Frontend'den Firestore doc ID gönderiyoruz, backend bunu id field'ına çevirecek
       // Ama eğer numeric_id varsa, onu kullan
@@ -530,7 +538,7 @@ function AdminPage() {
         // Firestore doc ID'yi gönder, backend bunu id field'ına çevirecek
         barberIdValue = createBookingForm.barberId;
       }
-      
+
       console.log('[Admin Create Booking] Barber ID conversion:', {
         original: createBookingForm.barberId,
         selectedBarber: {
@@ -559,7 +567,7 @@ function AdminPage() {
       console.log('Form values:', createBookingForm)
 
       const response = await adminAPI.createBooking(bookingData)
-      
+
       console.log('Booking created response:', response.data)
 
       setToast({ message: 'Randevu başarıyla oluşturuldu', type: 'success' })
@@ -574,12 +582,12 @@ function AdminPage() {
         appointmentDate: '',
         appointmentTime: ''
       })
-      
+
       // Wait for bookings to reload before closing modal
       // Force reload with current filters
       await loadBookings(showAllBookings)
       await loadStats()
-      
+
       // Also clear any date filter if set, to show the new booking
       if (filters.date) {
         setFilters(prev => ({ ...prev, date: '' }))
@@ -601,9 +609,9 @@ function AdminPage() {
     setSendingReport(true)
     try {
       const response = await adminAPI.sendDailyReport(reportDate)
-      setToast({ 
-        message: `Günlük rapor emaili gönderildi (${response.data.totalBookings} randevu)`, 
-        type: 'success' 
+      setToast({
+        message: `Günlük rapor emaili gönderildi (${response.data.totalBookings} randevu)`,
+        type: 'success'
       })
     } catch (error) {
       const errorMsg = error.response?.data?.error || error.message || 'Rapor gönderilemedi'
@@ -711,9 +719,9 @@ function AdminPage() {
                 </button>
               </div>
             </div>
-            <button 
-              type="submit" 
-              className="login-btn" 
+            <button
+              type="submit"
+              className="login-btn"
               disabled={loginLoading}
             >
               {loginLoading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
@@ -733,8 +741,8 @@ function AdminPage() {
             <p className="header-sub">14 günlük takvim, mobil öncelikli</p>
           </div>
           <div className="header-actions">
-            <button 
-              className="create-booking-btn" 
+            <button
+              className="create-booking-btn"
               onClick={() => setShowCreateBookingModal(true)}
               title="Yeni Randevu Oluştur"
             >
@@ -1089,8 +1097,8 @@ function AdminPage() {
                     value={createBookingForm.serviceName}
                     onChange={(e) => {
                       const selected = services.find(s => s.name === e.target.value)
-                      setCreateBookingForm({ 
-                        ...createBookingForm, 
+                      setCreateBookingForm({
+                        ...createBookingForm,
                         serviceName: e.target.value,
                         servicePrice: selected ? selected.price.toString() : ''
                       })

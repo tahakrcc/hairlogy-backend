@@ -24,12 +24,6 @@ try {
   else if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
     const serviceAccountPath = join(__dirname, process.env.FIREBASE_SERVICE_ACCOUNT_PATH.replace('./', ''));
     const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
-    
-    // Ensure private key has proper newlines
-    if (serviceAccount.private_key) {
-      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-    }
-    
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
       projectId: serviceAccount.project_id

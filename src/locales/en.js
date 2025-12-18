@@ -5,7 +5,7 @@ export default {
     premium: 'Premium',
     bookAppointment: 'Book Appointment'
   },
-  
+
   // Hero Section
   hero: {
     title: 'Premium',
@@ -17,42 +17,43 @@ export default {
     barberRole: 'Expert Barber',
     bookAppointment: 'Book Appointment'
   },
-  
+
   // Working Hours
   workingHours: {
     title: 'Working Hours',
-    weekdays: 'Monday - Saturday',
+    weekdays: 'Monday - Friday',
+    saturday: 'Saturday',
     weekend: 'Sunday',
     closed: 'Closed',
     lunchBreak: 'Lunch Break: 16:00 - 17:00'
   },
-  
+
   // Testimonials
   testimonials: {
     title: 'Customer Reviews',
     subtitle: 'From our satisfied customers'
   },
-  
+
   // Contact
   contact: {
     title: 'Contact'
   },
-  
+
   // Footer
   footer: {
     copyright: '© 2024 Hairlogy Yasin Premium. All rights reserved.'
   },
-  
+
   // Social Media
   socialMedia: {
     title: 'Social Media'
   },
-  
+
   // WhatsApp
   whatsapp: {
     message: 'Hello, I would like to book an appointment.'
   },
-  
+
   // Booking Page
   booking: {
     back: 'Back',
@@ -141,7 +142,7 @@ export default {
       full: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
     }
   },
-  
+
   // Testimonials Data
   testimonialsData: [
     {

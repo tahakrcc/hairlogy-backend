@@ -5,54 +5,55 @@ export default {
     premium: 'Premium',
     bookAppointment: 'Randevu Al'
   },
-  
+
   // Hero Section
   hero: {
     title: 'Premium',
     titleAccent: 'Berberlik',
     subtitle: 'Deneyimi',
-    description: '',
+    description: 'Uzman ekibimizle modern teknikler ve geleneksel ustalığı bir araya getiriyoruz',
     selectBarber: 'Ustanızı Seçin',
     selectBarberDesc: 'Randevu almak için profesyonel ustalarımızdan birini seçin ve stilinizi belirleyin.',
     barberRole: 'Uzman Berber',
     bookAppointment: 'Randevu Al'
   },
-  
+
   // Working Hours
   workingHours: {
     title: 'Çalışma Saatleri',
-    weekdays: 'Pazartesi - Cumartesi',
+    weekdays: 'Pazartesi - Cuma',
+    saturday: 'Cumartesi',
     weekend: 'Pazar',
     closed: 'Kapalı',
     lunchBreak: 'Yemek Molası: 16:00 - 17:00'
   },
-  
+
   // Testimonials
   testimonials: {
     title: 'Müşteri Yorumları',
     subtitle: 'Memnun müşterilerimizden'
   },
-  
+
   // Contact
   contact: {
     title: 'İletişim'
   },
-  
+
   // Footer
   footer: {
     copyright: '© 2024 Hairlogy Yasin Premium. Tüm hakları saklıdır.'
   },
-  
+
   // Social Media
   socialMedia: {
     title: 'Sosyal Medya'
   },
-  
+
   // WhatsApp
   whatsapp: {
     message: 'Merhaba, randevu almak istiyorum.'
   },
-  
+
   // Booking Page
   booking: {
     back: 'Geri Dön',
@@ -141,7 +142,7 @@ export default {
       full: ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
     }
   },
-  
+
   // Testimonials Data
   testimonialsData: [
     {

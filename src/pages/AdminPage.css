@@ -185,7 +185,7 @@ select option:focus {
   .create-booking-form .form-row {
     grid-template-columns: 1fr;
   }
-  
+
   .modal-content {
     max-width: 100%;
     margin: 0;
@@ -275,7 +275,7 @@ select option:focus {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .send-report-btn {
     width: 100%;
   }
@@ -403,7 +403,8 @@ select option:focus {
   }
 
   .admin-login-card input {
-    font-size: 16px; /* prevent mobile zoom */
+    font-size: 16px;
+    /* prevent mobile zoom */
     padding: 12px 14px;
   }
 
@@ -735,10 +736,25 @@ select option:focus {
   font-weight: 600;
 }
 
-.status-badge.warning { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
-.status-badge.info { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
-.status-badge.success { background: rgba(16, 185, 129, 0.2); color: #10b981; }
-.status-badge.error { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+.status-badge.warning {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+}
+
+.status-badge.info {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.status-badge.success {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.status-badge.error {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
 
 .list-card .booking-list {
   display: flex;
@@ -979,8 +995,15 @@ select option:focus {
 }
 
 @keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .sheet-header {

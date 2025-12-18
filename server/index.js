@@ -16,19 +16,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
 
-// CORS configuration - allow production and dev frontends
-app.use(cors({
-  origin: [
-    'https://hairologyyasinpremiumrandevu.com',
-    'https://hairlogyyasinpremium.netlify.app',
-    'http://localhost:3000',
-    'http://localhost:5173',
-    /\.netlify\.app$/
-  ],
-  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json());
 
 // Database setup

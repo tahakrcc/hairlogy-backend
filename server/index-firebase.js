@@ -287,11 +287,12 @@ app.get('/api/available-times', async (req, res) => {
     const barberIdNum = parseInt(barberId, 10);
     const barberIdStr = String(barberId);
 
-    // Get ALL bookings and filter in memory (most reliable approach)
-    // This avoids any index or type issues
-    const allBookingsSnapshot = await db.collection('bookings').get();
+    // Get bookings ONLY for this date to save quota
+    const allBookingsSnapshot = await db.collection('bookings')
+      .where('appointment_date', '==', date)
+      .get();
 
-    // Filter in memory for barber_id, appointment_date and status
+    // Filter in memory for barber_id and status
     const bookedTimes = [];
     let totalBookings = 0;
     let matchingBookings = 0;
@@ -374,6 +375,11 @@ app.get('/api/available-times-batch', async (req, res) => {
     const dateList = dates.split(',');
     const results = {};
 
+    // Get min and max dates for query optimization
+    const sortedDateList = [...dateList].sort();
+    const minDate = sortedDateList[0];
+    const maxDate = sortedDateList[sortedDateList.length - 1];
+
     // Get closed dates and bookings for the barber once
     const closedDatesSnapshot = await db.collection('closed_dates').get();
     const closedDates = closedDatesSnapshot.docs.map(doc => doc.data());
@@ -381,8 +387,12 @@ app.get('/api/available-times-batch', async (req, res) => {
     const barberIdNum = parseInt(barberId, 10);
     const barberIdStr = String(barberId);
 
-    // Get all bookings for this barber
-    const allBookingsSnapshot = await db.collection('bookings').get();
+    // Get bookings ONLY within the date range
+    const allBookingsSnapshot = await db.collection('bookings')
+      .where('appointment_date', '>=', minDate)
+      .where('appointment_date', '<=', maxDate)
+      .get();
+
     const barberBookings = allBookingsSnapshot.docs
       .map(doc => doc.data())
       .filter(data => {

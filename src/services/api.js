@@ -85,6 +85,8 @@ export const bookingsAPI = {
   create: (bookingData) => api.post('/bookings', bookingData),
   getAvailableTimes: (barberId, date) =>
     api.get('/available-times', { params: { barberId, date } }),
+  getAvailableTimesBatch: (barberId, dates) =>
+    api.get('/available-times-batch', { params: { barberId, dates: dates.join(',') } }),
 };
 
 export const adminAPI = {

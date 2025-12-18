@@ -362,6 +362,104 @@ app.get('/api/available-times', async (req, res) => {
   }
 });
 
+// Get available time slots for multiple dates (batch)
+app.get('/api/available-times-batch', async (req, res) => {
+  try {
+    const { barberId, dates } = req.query;
+
+    if (!barberId || !dates) {
+      return res.status(400).json({ error: 'barberId and dates are required' });
+    }
+
+    const dateList = dates.split(',');
+    const results = {};
+
+    // Get closed dates and bookings for the barber once
+    const closedDatesSnapshot = await db.collection('closed_dates').get();
+    const closedDates = closedDatesSnapshot.docs.map(doc => doc.data());
+
+    const barberIdNum = parseInt(barberId, 10);
+    const barberIdStr = String(barberId);
+
+    // Get all bookings for this barber
+    const allBookingsSnapshot = await db.collection('bookings').get();
+    const barberBookings = allBookingsSnapshot.docs
+      .map(doc => doc.data())
+      .filter(data => {
+        const dataBarberId = data.barber_id;
+        return dataBarberId === barberIdNum ||
+          dataBarberId === barberIdStr ||
+          String(dataBarberId) === String(barberIdNum) ||
+          String(dataBarberId) === barberIdStr ||
+          Number(dataBarberId) === barberIdNum;
+      });
+
+    for (const date of dateList) {
+      const selectedDate = new Date(date);
+      let isClosed = false;
+      let closedReason = '';
+
+      // Check if date is in a closed range
+      for (const closedData of closedDates) {
+        const startDate = new Date(closedData.start_date);
+        const endDate = new Date(closedData.end_date);
+
+        startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
+        const compareDate = new Date(date);
+        compareDate.setHours(0, 0, 0, 0);
+
+        if (compareDate >= startDate && compareDate <= endDate) {
+          isClosed = true;
+          closedReason = closedData.reason || 'Tatil günü';
+          break;
+        }
+      }
+
+      if (isClosed) {
+        results[date] = {
+          availableTimes: [],
+          bookedTimes: [],
+          isClosed: true,
+          reason: closedReason
+        };
+        continue;
+      }
+
+      // Filter bookings for this specific date
+      const bookingsForDate = barberBookings.filter(b =>
+        b.appointment_date === date && b.status !== 'cancelled' && b.appointment_time
+      );
+
+      const bookedTimes = bookingsForDate.map(b => String(b.appointment_time).trim());
+
+      // Time slots logic (same as single endpoint)
+      const allTimeSlots = [
+        '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
+      ];
+
+      if (selectedDate.getDay() === 6) {
+        allTimeSlots.push('21:00', '22:00');
+      }
+
+      const breakTimeSlots = ['16:00'];
+      const normalizedBookedTimes = bookedTimes.map(t => t.trim());
+
+      const availableTimes = allTimeSlots.filter(time => {
+        const normalizedTime = time.trim();
+        return !breakTimeSlots.includes(normalizedTime) && !normalizedBookedTimes.includes(normalizedTime);
+      });
+
+      results[date] = { availableTimes, bookedTimes, isClosed: false };
+    }
+
+    res.json(results);
+  } catch (error) {
+    console.error('Error in batch available times:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Create booking
 app.post('/api/bookings', async (req, res) => {
   try {

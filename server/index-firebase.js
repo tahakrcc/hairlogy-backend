@@ -15,6 +15,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-pro
 // CORS configuration - Allow Netlify frontend
 app.use(cors({
   origin: [
+    'https://hairologyyasinpremiumrandevu.com',
     'https://hairlogyyasinpremium.netlify.app',
     'http://localhost:3000',
     /\.netlify\.app$/

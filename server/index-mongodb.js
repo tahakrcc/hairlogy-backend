@@ -57,6 +57,11 @@ mongoose.connect(MONGODB_URI)
         console.error('MongoDB connection error:', err);
     });
 
+// Root endpoint
+app.get('/', (req, res) => {
+    res.send('Hairlogy Backend (MongoDB) is running!');
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
     res.json({

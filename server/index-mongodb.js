@@ -126,7 +126,7 @@ async function initializeDatabase() {
 
         // Admin Users (yasin, emir, admin)
         const admins = [
-            { username: 'yasin', password: 'yasin01tk', barber_id: 1 },
+            { username: 'yasin', password: 'Yasin@2025!', barber_id: 1 },
             { username: 'emir', password: 'emir01tk', barber_id: 2 },
             { username: 'admin', password: 'admin123' }
         ];
@@ -226,8 +226,9 @@ app.get('/api/available-times', async (req, res) => {
         }
 
         // Check closed dates
-        const selectedDate = new Date(date);
-        selectedDate.setHours(0, 0, 0, 0);
+        const checkDate = new Date(date);
+        // Do not use setHours, it shifts UTC date to local time which might change the day in UTC
+        // checkDate.setHours(0, 0, 0, 0);
 
         const closedDate = await ClosedDate.findOne({
             start_date: { $lte: date },
@@ -257,7 +258,7 @@ app.get('/api/available-times', async (req, res) => {
         ];
         // If it's Saturday (getDay() === 6), add 21:00 and 22:00
         // Use getUTCDay() for consistent day detection regardless of server timezone
-        if (selectedDate.getUTCDay() === 6) allTimeSlots.push('21:00', '22:00');
+        if (checkDate.getUTCDay() === 6) allTimeSlots.push('21:00', '22:00');
 
         const breakTimeSlots = ['16:00'];
         const availableTimes = allTimeSlots.filter(time =>

@@ -266,7 +266,9 @@ app.get('/api/available-times', async (req, res) => {
       // Set time to midnight for comparison
       startDate.setHours(0, 0, 0, 0);
       endDate.setHours(23, 59, 59, 999);
-      selectedDate.setHours(0, 0, 0, 0);
+      const selectedDate = new Date(date);
+      // Do not use setHours, it shifts UTC date to local time which might change the day in UTC
+      // selectedDate.setHours(0, 0, 0, 0);
 
       if (selectedDate >= startDate && selectedDate <= endDate) {
         isClosed = true;

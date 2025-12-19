@@ -125,16 +125,28 @@ async function initializeDatabase() {
         }
 
         // Admin Users (yasin, emir, admin)
-        const adminCount = await AdminUser.countDocuments();
-        if (adminCount === 0) {
-            const hashedPassword = bcrypt.hashSync('admin123', 10);
-            await AdminUser.insertMany([
-                { username: 'yasin', password: hashedPassword, barber_id: 1 },
-                { username: 'emir', password: hashedPassword, barber_id: 2 },
-                { username: 'admin', password: hashedPassword }
-            ]);
-            console.log('Default admin users created');
+        const admins = [
+            { username: 'yasin', password: 'yasin01tk', barber_id: 1 },
+            { username: 'emir', password: 'emir01tk', barber_id: 2 },
+            { username: 'admin', password: 'admin123' }
+        ];
+
+        for (const admin of admins) {
+            const existingUser = await AdminUser.findOne({ username: admin.username });
+            // Update if user doesn't exist OR if we want to enforce password reset (optional, but good for now)
+            // To avoid re-hashing every restart, we could check, but for now enforcing is safer for the user request
+            const hashedPassword = bcrypt.hashSync(admin.password, 10);
+
+            await AdminUser.findOneAndUpdate(
+                { username: admin.username },
+                {
+                    password: hashedPassword,
+                    barber_id: admin.barber_id
+                },
+                { upsert: true }
+            );
         }
+        console.log('Admin users initialized/updated');
 
         // Default System Settings
         const maintenanceSetting = await SystemSetting.findOne({ key: 'maintenance_mode' });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { LogOut, Calendar, Users, DollarSign, CheckCircle, XCircle, Clock, Trash2, Filter, Send, Phone, MessageSquare, ChevronRight, ChevronLeft, Plus, Scissors, X } from 'lucide-react'
-import { adminAPI, barbersAPI, servicesAPI, default as api } from '../services/api'
+import { LogOut, Calendar, Users, DollarSign, CheckCircle, XCircle, Clock, Trash2, Filter, Send, Phone, MessageSquare, ChevronRight, ChevronLeft, Plus, Scissors, X, Settings } from 'lucide-react'
+import { adminAPI, barbersAPI, servicesAPI, settingsAPI, default as api } from '../services/api'
 import Toast from '../components/Toast'
 import './AdminPage.css'
 import { addDays, format, startOfDay, isWithinInterval, parseISO, isSameDay } from 'date-fns'
@@ -51,6 +51,8 @@ function AdminPage() {
   const [sendingReport, setSendingReport] = useState(false)
   const [barbers, setBarbers] = useState({})
   const [services, setServices] = useState([])
+  const [maintenanceMode, setMaintenanceMode] = useState(false)
+  const [maintenanceLoading, setMaintenanceLoading] = useState(false)
 
   const horizonStart = startOfDay(new Date())
   const horizonEnd = startOfDay(addDays(horizonStart, 13)) // 14 günlük görünüm
@@ -69,6 +71,7 @@ function AdminPage() {
       loadClosedDates()
       loadBarbers()
       loadServices()
+      loadMaintenanceStatus()
     })
 
     const interval = setInterval(() => {
@@ -375,6 +378,31 @@ function AdminPage() {
       setServices(response.data)
     } catch (error) {
       console.error('Load services error:', error)
+    }
+  }
+
+  const loadMaintenanceStatus = async () => {
+    try {
+      const response = await settingsAPI.getMaintenanceMode()
+      setMaintenanceMode(response.data.maintenanceMode)
+    } catch (error) {
+      console.error('Load maintenance status error:', error)
+    }
+  }
+
+  const handleToggleMaintenance = async () => {
+    if (!window.confirm(`Bakım modunu ${maintenanceMode ? 'KAPATMAK' : 'AÇMAK'} istediğinize emin misiniz?`)) return
+
+    setMaintenanceLoading(true)
+    try {
+      const newValue = !maintenanceMode
+      await adminAPI.toggleMaintenanceMode(newValue)
+      setMaintenanceMode(newValue)
+      setToast({ message: `Bakım modu ${newValue ? 'AÇILDI' : 'KAPATILDI'}`, type: 'success' })
+    } catch (error) {
+      setToast({ message: 'Bakım modu güncellenirken hata oluştu', type: 'error' })
+    } finally {
+      setMaintenanceLoading(false)
     }
   }
 
@@ -741,6 +769,15 @@ function AdminPage() {
             <p className="header-sub">14 günlük takvim, mobil öncelikli</p>
           </div>
           <div className="header-actions">
+            <button
+              className={`maintenance-toggle-btn ${maintenanceMode ? 'active' : ''}`}
+              onClick={handleToggleMaintenance}
+              disabled={maintenanceLoading}
+              title={maintenanceMode ? 'Bakım Modunu Kapat' : 'Bakım Modunu Aç'}
+            >
+              <Settings size={18} className={maintenanceLoading ? 'spin' : ''} />
+              {maintenanceMode ? 'Bakımı Kapat' : 'Siteyi Bakıma Al'}
+            </button>
             <button
               className="create-booking-btn"
               onClick={() => setShowCreateBookingModal(true)}

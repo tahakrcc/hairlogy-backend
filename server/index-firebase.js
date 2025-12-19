@@ -1421,28 +1421,30 @@ async function cleanupOldBookings() {
 
     console.log(`Cleaning up bookings older than ${twoWeeksAgoStr}...`);
 
-    // Get all bookings
-    const allBookings = await db.collection('bookings').get();
+    // Get ONLY old bookings to save quota
+    const oldBookingsSnapshot = await db.collection('bookings')
+      .where('appointment_date', '<', twoWeeksAgoStr)
+      .get();
+
     let deletedCount = 0;
+
+    if (oldBookingsSnapshot.empty) {
+      console.log('No old bookings to clean up');
+      return;
+    }
 
     const batch = db.batch();
     let batchCount = 0;
 
-    allBookings.forEach(doc => {
-      const data = doc.data();
-      const appointmentDate = data.appointment_date;
+    oldBookingsSnapshot.forEach(doc => {
+      batch.delete(doc.ref);
+      deletedCount++;
+      batchCount++;
 
-      // Compare dates (format: YYYY-MM-DD)
-      if (appointmentDate && appointmentDate < twoWeeksAgoStr) {
-        batch.delete(doc.ref);
-        deletedCount++;
-        batchCount++;
-
-        // Firestore batch limit is 500, so commit in batches
-        if (batchCount >= 500) {
-          batch.commit();
-          batchCount = 0;
-        }
+      // Firestore batch limit is 500, so commit in batches
+      if (batchCount >= 500) {
+        batch.commit();
+        batchCount = 0;
       }
     });
 

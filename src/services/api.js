@@ -104,6 +104,12 @@ export const adminAPI = {
   getClosedDates: () => api.get('/admin/closed-dates'),
   createClosedDate: (data) => api.post('/admin/closed-dates', data),
   deleteClosedDate: (id) => api.delete(`/admin/closed-dates/${id}`),
+  // Maintenance Settings
+  toggleMaintenanceMode: (value) => api.post('/admin/settings/maintenance', { value }),
+};
+
+export const settingsAPI = {
+  getMaintenanceMode: () => api.get('/settings/maintenance'),
 };
 
 export default api;

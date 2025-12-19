@@ -477,6 +477,55 @@ select option:focus {
   align-items: center;
 }
 
+.maintenance-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(188, 136, 27, 0.2);
+  border: 1px solid rgba(188, 136, 27, 0.4);
+  border-radius: 10px;
+  color: #bc881b;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.maintenance-toggle-btn:hover {
+  background: rgba(188, 136, 27, 0.3);
+  transform: translateY(-1px);
+}
+
+.maintenance-toggle-btn.active {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #ef4444;
+}
+
+.maintenance-toggle-btn.active:hover {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+.maintenance-toggle-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
 .logout-btn {
   display: inline-flex;
   align-items: center;

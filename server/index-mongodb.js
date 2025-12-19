@@ -227,8 +227,12 @@ app.get('/api/available-times', async (req, res) => {
 
         // Check closed dates
         const checkDate = new Date(date);
-        // Do not use setHours, it shifts UTC date to local time which might change the day in UTC
-        // checkDate.setHours(0, 0, 0, 0);
+
+        // Safer day detection: Parse YYYY-MM-DD manually to avoid any timezone ambiguity
+        const [y, m, d] = date.split('-').map(Number);
+        // Create UTC date: month is 0-indexed
+        const utcDate = new Date(Date.UTC(y, m - 1, d));
+        const dayOfWeek = utcDate.getUTCDay();
 
         const closedDate = await ClosedDate.findOne({
             start_date: { $lte: date },
@@ -256,9 +260,8 @@ app.get('/api/available-times', async (req, res) => {
         const allTimeSlots = [
             '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
         ];
-        // If it's Saturday (getDay() === 6), add 21:00 and 22:00
-        // Use getUTCDay() for consistent day detection regardless of server timezone
-        if (checkDate.getUTCDay() === 6) allTimeSlots.push('21:00', '22:00');
+        // If it's Saturday (dayOfWeek === 6), add 21:00 and 22:00
+        if (dayOfWeek === 6) allTimeSlots.push('21:00', '22:00');
 
         const breakTimeSlots = ['16:00'];
         const availableTimes = allTimeSlots.filter(time =>
@@ -305,8 +308,12 @@ app.get('/api/available-times-batch', async (req, res) => {
                 .map(b => b.appointment_time.trim());
 
             const allTimeSlots = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
-            // Use getUTCDay() for consistent day detection
-            if (new Date(date).getUTCDay() === 6) allTimeSlots.push('21:00', '22:00');
+
+            // Safer day detection
+            const [y, m, d] = date.split('-').map(Number);
+            const dayOfWeek = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+
+            if (dayOfWeek === 6) allTimeSlots.push('21:00', '22:00');
 
             const availableTimes = allTimeSlots.filter(time => time !== '16:00' && !bookedTimes.includes(time));
             results[date] = { availableTimes, bookedTimes, isClosed: false };

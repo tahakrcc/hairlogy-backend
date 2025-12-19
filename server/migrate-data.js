@@ -40,8 +40,10 @@ async function migrate() {
             const docs = [];
             snapshot.forEach(doc => {
                 const data = doc.data();
-                // Ensure ID is handled if needed
-                docs.push(transform({ ...data, firebase_id: doc.id }));
+                const transformed = transform({ ...data, firebase_id: doc.id });
+                if (transformed) {
+                    docs.push(transformed);
+                }
             });
 
             if (docs.length > 0) {
@@ -82,21 +84,30 @@ async function migrate() {
         }));
 
         // 4. Bookings
-        await migrateCollection('bookings', Booking, (data) => ({
-            barber_id: data.barber_id,
-            barber_name: data.barber_name,
-            service_name: data.service_name,
-            service_price: data.service_price,
-            customer_name: data.customer_name,
-            customer_phone: data.customer_phone,
-            customer_email: data.customer_email,
-            appointment_date: data.appointment_date,
-            appointment_time: data.appointment_time,
-            device_token: data.device_token,
-            status: data.status,
-            created_at: data.created_at?.toDate ? data.created_at.toDate() : data.created_at,
-            updated_at: data.updated_at?.toDate ? data.updated_at.toDate() : data.updated_at
-        }));
+        // 4. Bookings
+        await migrateCollection('bookings', Booking, (data) => {
+            // Convert barber_id to Number if it's a valid number string
+            let bId = data.barber_id;
+            if (!isNaN(bId) && bId !== null && bId !== '') {
+                bId = Number(bId);
+            }
+
+            return {
+                barber_id: bId,
+                barber_name: data.barber_name,
+                service_name: data.service_name,
+                service_price: data.service_price,
+                customer_name: data.customer_name,
+                customer_phone: data.customer_phone,
+                customer_email: data.customer_email,
+                appointment_date: data.appointment_date,
+                appointment_time: data.appointment_time,
+                device_token: data.device_token,
+                status: data.status,
+                created_at: data.created_at?.toDate ? data.created_at.toDate() : data.created_at,
+                updated_at: data.updated_at?.toDate ? data.updated_at.toDate() : data.updated_at
+            };
+        });
 
         // 5. Closed Dates
         await migrateCollection('closed_dates', ClosedDate, (data) => ({
@@ -108,12 +119,15 @@ async function migrate() {
         }));
 
         // 6. Device Tokens
-        await migrateCollection('device_tokens', DeviceToken, (data) => ({
-            token: data.token,
-            booking_count: data.booking_count,
-            created_at: data.created_at?.toDate ? data.created_at.toDate() : data.created_at,
-            updated_at: data.updated_at?.toDate ? data.updated_at.toDate() : data.updated_at
-        }));
+        await migrateCollection('device_tokens', DeviceToken, (data) => {
+            if (!data.token) return null; // Skip invalid tokens
+            return {
+                token: data.token,
+                booking_count: data.booking_count,
+                created_at: data.created_at?.toDate ? data.created_at.toDate() : data.created_at,
+                updated_at: data.updated_at?.toDate ? data.updated_at.toDate() : data.updated_at
+            };
+        });
 
         // 7. Revenue History
         await migrateCollection('revenue_history', RevenueHistory, (data) => ({

@@ -255,7 +255,9 @@ app.get('/api/available-times', async (req, res) => {
         const allTimeSlots = [
             '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
         ];
-        if (selectedDate.getDay() === 6) allTimeSlots.push('21:00', '22:00');
+        // If it's Saturday (getDay() === 6), add 21:00 and 22:00
+        // Use getUTCDay() for consistent day detection regardless of server timezone
+        if (selectedDate.getUTCDay() === 6) allTimeSlots.push('21:00', '22:00');
 
         const breakTimeSlots = ['16:00'];
         const availableTimes = allTimeSlots.filter(time =>
@@ -302,7 +304,8 @@ app.get('/api/available-times-batch', async (req, res) => {
                 .map(b => b.appointment_time.trim());
 
             const allTimeSlots = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
-            if (new Date(date).getDay() === 6) allTimeSlots.push('21:00', '22:00');
+            // Use getUTCDay() for consistent day detection
+            if (new Date(date).getUTCDay() === 6) allTimeSlots.push('21:00', '22:00');
 
             const availableTimes = allTimeSlots.filter(time => time !== '16:00' && !bookedTimes.includes(time));
             results[date] = { availableTimes, bookedTimes, isClosed: false };
@@ -568,10 +571,17 @@ app.get('/api/admin/stats', verifyToken, async (req, res) => {
         const todayBookings = await Booking.countDocuments({ ...filter, appointment_date: today });
 
         const revenueRecords = await RevenueHistory.find(filter);
+
+        // Filter out non-ObjectId strings to prevent CastError in $nin query
+        // Some revenue records might reference old Firebase string IDs
+        const revenueBookingIds = revenueRecords
+            .map(r => r.booking_id)
+            .filter(id => mongoose.Types.ObjectId.isValid(id));
+
         const activeBookings = await Booking.find({
             ...filter,
             status: 'confirmed',
-            _id: { $nin: revenueRecords.map(r => r.booking_id) }
+            _id: { $nin: revenueBookingIds }
         });
 
         const totalRevenue = revenueRecords.reduce((sum, r) => sum + (r.service_price || 0), 0) +

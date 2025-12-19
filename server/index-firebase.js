@@ -338,7 +338,8 @@ app.get('/api/available-times', async (req, res) => {
     ];
 
     // If it's Saturday (getDay() === 6), add 21:00 and 22:00
-    if (selectedDate.getDay() === 6) {
+    // Use getUTCDay() to be timezone independent
+    if (selectedDate.getUTCDay() === 6) {
       allTimeSlots.push('21:00', '22:00');
     }
 
@@ -448,7 +449,8 @@ app.get('/api/available-times-batch', async (req, res) => {
         '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
       ];
 
-      if (selectedDate.getDay() === 6) {
+      // Use getUTCDay() to be timezone independent
+      if (selectedDate.getUTCDay() === 6) {
         allTimeSlots.push('21:00', '22:00');
       }
 

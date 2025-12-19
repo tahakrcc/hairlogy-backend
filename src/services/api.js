@@ -15,7 +15,7 @@ const getApiBaseUrl = () => {
     // Örnek: 'https://your-backend.railway.app/api'
     // Örnek: 'https://your-backend.render.com/api'
     // Örnek: 'https://your-backend.herokuapp.com/api'
-    return 'https://your-backend-url.com/api'; // ← Backend URL'inizi buraya yazın
+    return 'https://hairlogy-backend.onrender.com/api';
   }
 
   // 3. Development için localhost proxy

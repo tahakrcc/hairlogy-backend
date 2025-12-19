@@ -3,7 +3,7 @@ services:
     name: hairlogy-backend
     env: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
@@ -14,11 +14,11 @@ services:
         value: kuafor-tk-a9bf0 # Yeni Firebase proje ID
       - key: FIREBASE_SERVICE_ACCOUNT_PATH
         value: ./serviceAccountKey.json
-      - key: MAILJET_API_KEY
-        sync: 7418d0bd58c88684f714823bc10dfe71
-      - key: MAILJET_API_SECRET
-        sync: 6b6a9d38d193960134a4c95d31a8e174
-      - key: FROM_EMAIL
+      - key: MJ_APIKEY_PUBLIC
+        value: 7418d0bd58c88684f714823bc10dfe71
+      - key: MJ_APIKEY_PRIVATE
+        value: 6b6a9d38d193960134a4c95d31a8e174
+      - key: SENDER_EMAIL
         value: noreply@hairologyyasinpremiumrandevu.com
       - key: FROM_NAME
         value: Hairlogy Yasin Premium

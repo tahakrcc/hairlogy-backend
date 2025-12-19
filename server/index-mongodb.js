@@ -7,6 +7,11 @@ import mongoose from 'mongoose';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const Mailjet = require('node-mailjet');
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import {
     Barber,
     Service,
@@ -46,6 +51,9 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json());
+
+// Serve static files from the React frontend app
+app.use(express.static(path.join(__dirname, '../dist')));
 
 // MongoDB Connection
 mongoose.connect(MONGODB_URI)
@@ -685,5 +693,10 @@ function scheduleCleanup() {
     cleanupOldBookings();
     setInterval(cleanupOldBookings, 24 * 60 * 60 * 1000);
 }
+
+// All other GET requests not handled before will return our React app
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist', 'index.html'));
+});
 
 app.listen(PORT, () => console.log(`Server (MongoDB) running on port ${PORT}`));

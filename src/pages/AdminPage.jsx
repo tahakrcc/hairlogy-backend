@@ -532,7 +532,15 @@ function AdminPage() {
 
     setCreatingBooking(true)
     try {
-      const selectedBarber = barbers[createBookingForm.barberId]
+      let selectedBarber = barbers[createBookingForm.barberId]
+
+      // If direct lookup fails (because key is MongoID but we have numeric ID), search by value
+      if (!selectedBarber) {
+        selectedBarber = Object.values(barbers).find(b =>
+          String(b.barber_id) === String(createBookingForm.barberId) ||
+          String(b.id) === String(createBookingForm.barberId)
+        )
+      }
 
       // Barber kontrolü
       if (!selectedBarber) {
@@ -1085,7 +1093,7 @@ function AdminPage() {
                   >
                     <option value="">Seçiniz</option>
                     {Object.values(barbers).map(barber => (
-                      <option key={barber.id} value={barber.id}>{barber.name}</option>
+                      <option key={barber.id} value={barber.barber_id || barber.id}>{barber.name}</option>
                     ))}
                   </select>
                 </div>

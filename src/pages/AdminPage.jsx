@@ -109,6 +109,16 @@ function AdminPage() {
     }
   }, [filters, showAllBookings])
 
+  // Debugging logs (Correct Placement)
+  useEffect(() => {
+    console.log('Admin Page Version: 1.0.3 (Debug)');
+    console.log('Barbers Data:', barbers);
+    if (isAuthenticated && Object.keys(barbers).length > 0) {
+      // Toast shows strictly for debug visibility
+      console.log('Debug: v1.0.3 - Barbers Loaded');
+    }
+  }, [barbers, isAuthenticated]);
+
   const checkBackendConnection = async () => {
     try {
       await api.get('/health')
@@ -532,19 +542,26 @@ function AdminPage() {
 
     setCreatingBooking(true)
     try {
+      console.log('Looking up barber:', createBookingForm.barberId);
+      console.log('Barber keys:', Object.keys(barbers));
+
       let selectedBarber = barbers[createBookingForm.barberId]
 
       // If direct lookup fails (because key is MongoID but we have numeric ID), search by value
       if (!selectedBarber) {
-        selectedBarber = Object.values(barbers).find(b =>
-          String(b.barber_id) === String(createBookingForm.barberId) ||
-          String(b.id) === String(createBookingForm.barberId)
-        )
+        console.log('Direct lookup failed, searching by property...');
+        selectedBarber = Object.values(barbers).find(b => {
+          console.log(`Checking barber ${b.name}: id=${b.id}, barber_id=${b.barber_id}`);
+          return String(b.barber_id) === String(createBookingForm.barberId) ||
+            String(b.id) === String(createBookingForm.barberId);
+        });
       }
+
+      console.log('Found Barber:', selectedBarber);
 
       // Barber kontrolü
       if (!selectedBarber) {
-        setToast({ message: 'Lütfen geçerli bir berber seçin', type: 'error' })
+        setToast({ message: `Hata: Berber bulunamadı (ID: ${createBookingForm.barberId})`, type: 'error' })
         setCreatingBooking(false)
         return
       }

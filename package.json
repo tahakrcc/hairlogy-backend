@@ -36,6 +36,6 @@
     "server": "node server/index.js",
     "dev:all": "concurrently \"npm run dev\" \"npm run server\"",
     "postinstall": "cd server && npm install",
-    "start": "cd server && node index-firebase.js"
+    "start": "cd server && node index-mongodb.js"
   }
 }

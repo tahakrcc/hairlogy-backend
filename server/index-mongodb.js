@@ -53,7 +53,15 @@ app.use(cors({
 app.use(express.json());
 
 // Serve static files from the React frontend app
-app.use(express.static(path.join(__dirname, '../dist')));
+app.use(express.static(path.join(__dirname, '../dist'), {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('index.html')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+        }
+    }
+}));
 
 // MongoDB Connection
 mongoose.connect(MONGODB_URI)

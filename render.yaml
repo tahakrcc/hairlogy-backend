@@ -26,6 +26,8 @@ services:
         value: hairlogyyasin@gmail.com
       - key: JWT_SECRET
         generateValue: true
+      - key: MONGODB_URI
+        value: mongodb+srv://ollamataha_db_user:689689tk@taha.karnmcv.mongodb.net/?appName=taha
       # Firebase Service Account Key'i environment variable olarak ekleyin
       # Render Dashboard'dan "Environment" sekmesinde ekleyin
       # Key: GOOGLE_APPLICATION_CREDENTIALS_JSON

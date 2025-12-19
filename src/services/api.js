@@ -11,11 +11,8 @@ const getApiBaseUrl = () => {
 
   // 2. Production modunda ve environment variable yoksa
   if (import.meta.env.PROD) {
-    // ⚠️ BACKEND URL'İNİZİ BURAYA YAZIN ⚠️
-    // Örnek: 'https://your-backend.railway.app/api'
-    // Örnek: 'https://your-backend.render.com/api'
-    // Örnek: 'https://your-backend.herokuapp.com/api'
-    return 'https://hairlogy-backend.onrender.com/api';
+    // Frontend ve Backend aynı yerden sunulduğu için relative path kullanıyoruz
+    return '/api';
   }
 
   // 3. Development için localhost proxy

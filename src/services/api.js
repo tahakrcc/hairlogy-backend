@@ -11,8 +11,8 @@ const getApiBaseUrl = () => {
 
   // 2. Production modunda ve environment variable yoksa
   if (import.meta.env.PROD) {
-    // Frontend ve Backend aynı yerden sunulduğu için relative path kullanıyoruz
-    return '/api';
+    // Frontend Netlify'da, Backend Render'da olduğu için Full URL veriyoruz
+    return 'https://hairlogy-backend.onrender.com/api';
   }
 
   // 3. Development için localhost proxy

@@ -528,6 +528,17 @@ function AdminPage() {
   const handleCreateBooking = async (e) => {
     e.preventDefault()
 
+    // Telefon validasyonu
+    const phone = createBookingForm.customerPhone.replace(/[^0-9]/g, '');
+    if (phone.length !== 10) {
+      setToast({ message: 'Telefon numarası eksik! Başında 0 olmadan 10 hane giriniz. (Örn: 5XX...)', type: 'error' });
+      return;
+    }
+    if (!phone.startsWith('5')) {
+      setToast({ message: 'Telefon numarası 5 ile başlamalıdır.', type: 'error' });
+      return;
+    }
+
     if (!createBookingForm.barberId || !createBookingForm.serviceName || !createBookingForm.customerName ||
       !createBookingForm.customerPhone || !createBookingForm.appointmentDate || !createBookingForm.appointmentTime) {
       setToast({ message: 'Lütfen tüm zorunlu alanları doldurun', type: 'error' })
@@ -1196,7 +1207,13 @@ function AdminPage() {
                   <input
                     type="tel"
                     value={createBookingForm.customerPhone}
-                    onChange={(e) => setCreateBookingForm({ ...createBookingForm, customerPhone: e.target.value })}
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/[^0-9]/g, '');
+                      if (val.startsWith('0')) val = val.substring(1);
+                      if (val.length > 10) val = val.substring(0, 10);
+                      setCreateBookingForm({ ...createBookingForm, customerPhone: val });
+                    }}
+                    placeholder="5XX XXX XX XX"
                     required
                   />
                 </div>

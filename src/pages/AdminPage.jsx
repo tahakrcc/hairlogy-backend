@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { LogOut, Calendar, Users, DollarSign, CheckCircle, XCircle, Clock, Trash2, Filter, Send, Phone, MessageSquare, ChevronRight, ChevronLeft, Plus, Scissors, X, Settings, TrendingUp } from 'lucide-react'
 import { adminAPI, barbersAPI, servicesAPI, settingsAPI, default as api } from '../services/api'
 import Toast from '../components/Toast'
@@ -14,6 +15,7 @@ const statusConfig = {
 }
 
 function AdminPage() {
+  const navigate = useNavigate()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
   const [loginLoading, setLoginLoading] = useState(false)

@@ -29,6 +29,21 @@ function App() {
       }
     }
 
+    // Track visit (once per session)
+    const trackSiteVisit = async () => {
+      const visited = sessionStorage.getItem('site_visited');
+      if (!visited) {
+        try {
+          await settingsAPI.trackVisit();
+          sessionStorage.setItem('site_visited', 'true');
+        } catch (err) {
+          console.error('Visit tracking failed', err);
+        }
+      }
+    };
+
+    trackSiteVisit();
+
     // 2. Simulate initial loading time for branding
     const timer = setTimeout(() => {
       setLoading(false)

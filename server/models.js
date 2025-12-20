@@ -78,3 +78,10 @@ export const ClosedDate = mongoose.model('ClosedDate', closedDateSchema);
 export const DeviceToken = mongoose.model('DeviceToken', deviceTokenSchema);
 export const RevenueHistory = mongoose.model('RevenueHistory', revenueHistorySchema);
 export const SystemSetting = mongoose.model('SystemSetting', systemSettingSchema);
+
+const dailyStatsSchema = new mongoose.Schema({
+    date: { type: String, required: true, unique: true }, // YYYY-MM-DD
+    visits: { type: Number, default: 0 }
+}, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
+
+export const DailyStats = mongoose.model('DailyStats', dailyStatsSchema);

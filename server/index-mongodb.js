@@ -20,7 +20,8 @@ import {
     ClosedDate,
     DeviceToken,
     RevenueHistory,
-    SystemSetting
+    SystemSetting,
+    DailyStats
 } from './models.js';
 
 dotenv.config();
@@ -201,6 +202,22 @@ const verifyToken = (req, res, next) => {
 };
 
 // ============ PUBLIC ROUTES ============
+
+// Track site visit
+app.post('/api/visit', async (req, res) => {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        await DailyStats.findOneAndUpdate(
+            { date: today },
+            { $inc: { visits: 1 } },
+            { upsert: true, new: true }
+        );
+        res.json({ message: 'Visit recorded' });
+    } catch (error) {
+        // Silent fail for analytics
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // Get maintenance mode status
 app.get('/api/settings/maintenance', async (req, res) => {
@@ -623,12 +640,18 @@ app.get('/api/admin/stats', verifyToken, async (req, res) => {
             { $sort: { '_id.date': 1 } }
         ]);
 
+        // Get daily site visits
+        // If specific date filter is applied we should filter, but usually trends is for a range
+        // For simplicity, we fetch all relevant daily stats or last 90 days
+        const siteVisits = await DailyStats.find().sort({ date: -1 }).limit(90);
+
         res.json({
             totalBookings,
             bookingsByStatus: bookingsByStatus.map(s => ({ status: s._id, count: s.count })),
             todayBookings,
             totalRevenue,
-            trends
+            trends,
+            siteVisits: siteVisits.map(v => ({ date: v.date, visits: v.visits }))
         });
     } catch (error) {
         res.status(500).json({ error: error.message });

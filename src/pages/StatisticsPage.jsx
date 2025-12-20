@@ -29,25 +29,33 @@ function StatisticsPage() {
 
     // Group trends by date
     const processTrends = () => {
-        if (!stats?.trends) return []
-
+        // We have stats.trends and stats.siteVisits
         const dailyData = {}
 
-        // Sort trends by date descending first to get latest
-        const sortedTrends = [...stats.trends].sort((a, b) =>
-            new Date(b._id.date) - new Date(a._id.date)
-        );
+        // 1. Process Revenue/Visitors (from Bookings)
+        if (stats?.trends) {
+            stats.trends.forEach(item => {
+                const date = item._id.date
+                if (!dailyData[date]) {
+                    dailyData[date] = { date, revenue: 0, customers: 0, siteVisits: 0 }
+                }
+                dailyData[date].revenue += item.revenue
+                dailyData[date].customers += item.count // This is distinct customers (bookings)
+            })
+        }
 
-        sortedTrends.forEach(item => {
-            const date = item._id.date
-            if (!dailyData[date]) {
-                dailyData[date] = { date, revenue: 0, visitors: 0 }
-            }
-            dailyData[date].revenue += item.revenue
-            dailyData[date].visitors += item.count
-        })
+        // 2. Process Site Visits (from DailyStats)
+        if (stats?.siteVisits) {
+            stats.siteVisits.forEach(item => {
+                const date = item.date
+                if (!dailyData[date]) {
+                    dailyData[date] = { date, revenue: 0, customers: 0, siteVisits: 0 }
+                }
+                dailyData[date].siteVisits = item.visits
+            })
+        }
 
-        // Convert to array and take top N based on dateRange
+        // Convert to array and sort
         return Object.values(dailyData)
             .sort((a, b) => new Date(b.date) - new Date(a.date)) // Newest first
             .slice(0, parseInt(dateRange))
@@ -141,11 +149,15 @@ function StatisticsPage() {
                                             <span className="stat-year">{new Date(day.date).getFullYear()}</span>
                                         </div>
                                         <div className="stat-card-metrics">
-                                            <div className="stat-metric">
-                                                <Users size={16} className="text-gray" />
-                                                <span className="metric-value">{day.visitors} Kişi</span>
+                                            <div className="stat-metric" title="Siteye Giren Kişi Sayısı">
+                                                <Users size={16} className="text-blue" />
+                                                <span className="metric-value">{day.siteVisits || 0} Ziyaret</span>
                                             </div>
-                                            <div className="stat-metric">
+                                            <div className="stat-metric" title="Gerçekleşen Randevu Sayısı">
+                                                <Users size={16} className="text-gray" />
+                                                <span className="metric-value">{day.customers} Müşteri</span>
+                                            </div>
+                                            <div className="stat-metric" title="Toplam Ciro">
                                                 <TrendingUp size={16} className="text-gold" />
                                                 <span className="metric-value revenue">{day.revenue}₺</span>
                                             </div>

@@ -452,6 +452,17 @@ function BookingPage() {
       return
     }
 
+    // Telefon validasyonu
+    const phone = formData.phone.replace(/[^0-9]/g, '');
+    if (phone.length !== 10) {
+      setToast({ message: 'Telefon numarası eksik! Başında 0 olmadan 10 hane giriniz. (Örn: 5XX...)', type: 'error' });
+      return;
+    }
+    if (!phone.startsWith('5')) {
+      setToast({ message: 'Telefon numarası 5 ile başlamalıdır.', type: 'error' });
+      return;
+    }
+
     setLoading(true)
     try {
       const dateStr = format(selectedDate, 'yyyy-MM-dd')
@@ -1026,9 +1037,14 @@ function BookingPage() {
                           type="tel"
                           name="phone"
                           value={formData.phone}
-                          onChange={handleInputChange}
+                          onChange={(e) => {
+                            let val = e.target.value.replace(/[^0-9]/g, '');
+                            if (val.startsWith('0')) val = val.substring(1);
+                            if (val.length > 10) val = val.substring(0, 10);
+                            setFormData({ ...formData, phone: val });
+                          }}
                           required
-                          placeholder="05XX XXX XX XX"
+                          placeholder="5XX XXX XX XX"
                         />
                       </div>
                       <div className="form-group">

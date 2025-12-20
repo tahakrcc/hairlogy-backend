@@ -640,6 +640,18 @@ app.get('/api/admin/stats', verifyToken, async (req, res) => {
             { $sort: { '_id.date': 1 } }
         ]);
 
+        // Aggregate everyday bookings (Customer count)
+        const bookingTrends = await Booking.aggregate([
+            { $match: filter },
+            {
+                $group: {
+                    _id: '$appointment_date',
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
         // Get daily site visits
         // If specific date filter is applied we should filter, but usually trends is for a range
         // For simplicity, we fetch all relevant daily stats or last 90 days
@@ -651,6 +663,7 @@ app.get('/api/admin/stats', verifyToken, async (req, res) => {
             todayBookings,
             totalRevenue,
             trends,
+            bookingTrends,
             siteVisits: siteVisits.map(v => ({ date: v.date, visits: v.visits }))
         });
     } catch (error) {

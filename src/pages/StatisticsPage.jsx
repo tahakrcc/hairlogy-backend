@@ -30,10 +30,10 @@ function StatisticsPage() {
 
     // Group trends by date
     const processTrends = () => {
-        // We have stats.trends and stats.siteVisits
+        // We have stats.trends (revenue history), stats.bookingTrends (all bookings), stats.siteVisits
         const dailyData = {}
 
-        // 1. Process Revenue/Visitors (from Bookings)
+        // 1. Process Revenue (from RevenueHistory)
         if (stats?.trends) {
             stats.trends.forEach(item => {
                 const date = item._id.date
@@ -41,11 +41,21 @@ function StatisticsPage() {
                     dailyData[date] = { date, revenue: 0, customers: 0, siteVisits: 0 }
                 }
                 dailyData[date].revenue += item.revenue
-                dailyData[date].customers += item.count // This is distinct customers (bookings)
             })
         }
 
-        // 2. Process Site Visits (from DailyStats)
+        // 2. Process Customers (from Bookings) - FIX: Use bookingTrends for comprehensive count
+        if (stats?.bookingTrends) {
+            stats.bookingTrends.forEach(item => {
+                const date = item._id
+                if (!dailyData[date]) {
+                    dailyData[date] = { date, revenue: 0, customers: 0, siteVisits: 0 }
+                }
+                dailyData[date].customers = item.count
+            })
+        }
+
+        // 3. Process Site Visits (from DailyStats)
         if (stats?.siteVisits) {
             stats.siteVisits.forEach(item => {
                 const date = item.date

@@ -4,6 +4,7 @@ import { ArrowLeft, TrendingUp, Users, Calendar, DollarSign, Filter } from 'luci
 import { adminAPI } from '../services/api'
 import { useLanguage } from '../contexts/LanguageContext'
 import './AdminPage.css' // Reusing Admin styles for consistency
+import './StatisticsPage.css' // Specific stats styles
 
 function StatisticsPage() {
     const navigate = useNavigate()

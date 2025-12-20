@@ -1,0 +1,215 @@
+/* Statistics Page Styles */
+
+.stats-filter-container {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    flex-wrap: wrap;
+}
+
+.filter-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.filter-options {
+    display: flex;
+    gap: 8px;
+}
+
+.filter-btn {
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.filter-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-color: rgba(188, 136, 27, 0.4);
+}
+
+.filter-btn.active {
+    background: rgba(188, 136, 27, 0.2);
+    border-color: #bc881b;
+    color: #bc881b;
+}
+
+.booking-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.section-header h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    margin: 0;
+}
+
+.stats-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.stat-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+    border-color: rgba(188, 136, 27, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.stat-card-date {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100px;
+    flex-shrink: 0;
+}
+
+.stat-day {
+    font-size: 24px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+}
+
+.stat-month {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.stat-year {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.stat-card-metrics {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex: 1;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+.stat-metric {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    min-width: 140px;
+}
+
+.metric-value {
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+}
+
+.metric-value.revenue {
+    color: #bc881b;
+    font-size: 16px;
+}
+
+.text-gray {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.text-gold {
+    color: #bc881b;
+}
+
+.text-blue {
+    color: #3b82f6;
+}
+
+.no-bookings {
+    text-align: center;
+    padding: 40px;
+    color: rgba(255, 255, 255, 0.5);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+/* Mobile Adjustments */
+@media (max-width: 768px) {
+    .stats-filter-container {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .filter-options {
+        width: 100%;
+    }
+
+    .filter-btn {
+        flex: 1;
+        text-align: center;
+    }
+
+    .stat-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .stat-card-date {
+        flex-direction: row;
+        align-items: baseline;
+        gap: 8px;
+        width: 100%;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 12px;
+    }
+
+    .stat-day {
+        font-size: 20px;
+    }
+
+    .stat-month {
+        font-size: 14px;
+    }
+
+    .stat-card-metrics {
+        width: 100%;
+        justify-content: flex-start;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .stat-metric {
+        width: 100%;
+    }
+}

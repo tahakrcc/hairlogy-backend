@@ -616,7 +616,8 @@ app.get('/api/admin/stats', verifyToken, async (req, res) => {
             {
                 $group: {
                     _id: { date: '$appointment_date', barberId: '$barber_id' },
-                    revenue: { $sum: '$service_price' }
+                    revenue: { $sum: '$service_price' },
+                    count: { $sum: 1 }
                 }
             },
             { $sort: { '_id.date': 1 } }

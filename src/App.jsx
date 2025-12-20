@@ -4,6 +4,7 @@ import { LanguageProvider } from './contexts/LanguageContext'
 import HomePage from './pages/HomePage'
 import BookingPage from './pages/BookingPage'
 import AdminPage from './pages/AdminPage'
+import StatisticsPage from './pages/StatisticsPage'
 import BarberSelectPage from './pages/BarberSelectPage'
 import MaintenancePage from './pages/MaintenancePage'
 import LoadingScreen from './components/LoadingScreen'
@@ -48,6 +49,7 @@ function App() {
           <Routes>
             {/* Admin paneli her zaman aktif kalmalı */}
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/admin/stats" element={<StatisticsPage />} />
 
             {/* Bakım modu aktifse tüm sayfalar Bakım Sayfasına yönlenir */}
             {maintenanceMode ? (

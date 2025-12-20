@@ -17,5 +17,8 @@ export default defineConfig({
     include: ['html2canvas', 'jspdf'],
     force: true
   },
-  publicDir: 'public'
+  publicDir: 'public',
+  build: {
+    chunkSizeWarningLimit: 1600
+  }
 })

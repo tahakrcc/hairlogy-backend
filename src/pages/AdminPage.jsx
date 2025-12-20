@@ -863,448 +863,434 @@ function AdminPage() {
               </div>
             </div>
           </div>
-          <div className="stat-chip">
-            <Users size={18} />
-            <div>
-              <p>Bekleyen</p>
-              <strong>{getStatusCount('pending')}</strong>
-            </div>
-          </div>
-          <div className="stat-chip">
-            <DollarSign size={18} />
-            <div>
-              <p>Toplam Gelir</p>
-              <strong>{stats?.totalRevenue?.toFixed?.(0) ?? '0'}₺</strong>
-            </div>
-          </div>
-        </div>
 
-        <div className="filter-bar">
-          <button className="filter-toggle" onClick={() => setShowFilters(!showFilters)}>
-            <Filter size={16} />
-            Filtreler
-          </button>
-          <label className="show-all-toggle">
-            <input
-              type="checkbox"
-              checked={showAllBookings}
-              onChange={(e) => {
-                const checked = e.target.checked
-                setShowAllBookings(checked)
-                localStorage.setItem('showAllBookings', checked ? 'true' : 'false')
-                if (!checked) {
-                  const barberId = localStorage.getItem('adminBarberId')
-                  if (barberId) setFilters(prev => ({ ...prev, barberId: String(barberId) }))
-                } else {
-                  setFilters(prev => ({ ...prev, barberId: '' }))
-                }
-                loadBookings(checked)
-              }}
-            />
-            <span>Tüm randevular</span>
-          </label>
-        </div>
 
-        {showFilters && (
-          <div className="filters-sheet">
-            <div className="filter-group">
-              <span>Durum</span>
-              <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
-                <option value="">Hepsi</option>
-                <option value="pending">Beklemede</option>
-                <option value="confirmed">Onaylandı</option>
-                <option value="completed">Tamamlandı</option>
-                <option value="cancelled">İptal</option>
-              </select>
-            </div>
-            <div className="filter-group">
-              <span>Berber</span>
-              <select value={filters.barberId} onChange={(e) => setFilters({ ...filters, barberId: e.target.value })}>
-                <option value="">Hepsi</option>
-                <option value="1">Hıdır Yasin Gökçeoğlu</option>
-                <option value="2">Emir Gökçeoğlu</option>
-              </select>
-            </div>
-            <div className="filter-group">
-              <span>Tarih</span>
-              <input
-                type="date"
-                value={filters.date}
-                onChange={(e) => setFilters({ ...filters, date: e.target.value })}
-              />
-            </div>
-            <div className="filter-actions">
-              <button className="outline" onClick={() => setFilters({ status: '', barberId: '', date: '' })}>Temizle</button>
-              <button className="primary" onClick={() => { setShowFilters(false); loadBookings() }}>Uygula</button>
-            </div>
-          </div>
-        )}
-
-        <section className="card calendar-card">
-          <div className="calendar-header">
-            <div>
-              <p className="muted">14 günlük görünüm</p>
-              <strong>{format(horizonStart, 'd MMM', { locale: tr })} - {format(horizonEnd, 'd MMM', { locale: tr })}</strong>
-            </div>
-          </div>
-          <div className="day-strip">
-            {bookingsByDate.map(({ date, label, bookings: list }) => (
-              <button
-                key={date}
-                className={`day-tile ${list.length ? 'has-booking' : ''} ${isSameDay(parseISO(date), horizonStart) ? 'is-today' : ''}`}
-                onClick={() => openDay(date, list)}
-              >
-                <div className="day-tile-head">
-                  <span className="day-label">{label}</span>
-                  {list.length > 0 && <span className="count-chip">{list.length}</span>}
-                </div>
-                <div className="day-tile-body">
-                  {list.length === 0 ? <p className="muted tiny">Kayıt yok</p> : <p className="muted tiny">Detay için dokun</p>}
-                </div>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="card closed-card">
-          <div className="closed-header">
-            <div>
-              <h3>Kapalı Tarihler</h3>
-              <p className="muted">Aralık ekle/sil</p>
-            </div>
-            <button className="refresh-btn" onClick={() => setShowClosedDateForm(!showClosedDateForm)}>
-              {showClosedDateForm ? 'İptal' : 'Yeni Ekle'}
+          <div className="filter-bar">
+            <button className="filter-toggle" onClick={() => setShowFilters(!showFilters)}>
+              <Filter size={16} />
+              Filtreler
             </button>
+            <label className="show-all-toggle">
+              <input
+                type="checkbox"
+                checked={showAllBookings}
+                onChange={(e) => {
+                  const checked = e.target.checked
+                  setShowAllBookings(checked)
+                  localStorage.setItem('showAllBookings', checked ? 'true' : 'false')
+                  if (!checked) {
+                    const barberId = localStorage.getItem('adminBarberId')
+                    if (barberId) setFilters(prev => ({ ...prev, barberId: String(barberId) }))
+                  } else {
+                    setFilters(prev => ({ ...prev, barberId: '' }))
+                  }
+                  loadBookings(checked)
+                }}
+              />
+              <span>Tüm randevular</span>
+            </label>
           </div>
 
-          {showClosedDateForm && (
-            <form onSubmit={handleCreateClosedDate} className="closed-form">
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Başlangıç</label>
-                  <input
-                    type="date"
-                    value={closedDateForm.start_date}
-                    onChange={(e) => setClosedDateForm({ ...closedDateForm, start_date: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Bitiş</label>
-                  <input
-                    type="date"
-                    value={closedDateForm.end_date}
-                    onChange={(e) => setClosedDateForm({ ...closedDateForm, end_date: e.target.value })}
-                    required
-                  />
-                </div>
+          {showFilters && (
+            <div className="filters-sheet">
+              <div className="filter-group">
+                <span>Durum</span>
+                <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
+                  <option value="">Hepsi</option>
+                  <option value="pending">Beklemede</option>
+                  <option value="confirmed">Onaylandı</option>
+                  <option value="completed">Tamamlandı</option>
+                  <option value="cancelled">İptal</option>
+                </select>
               </div>
-              <div className="form-group">
-                <label>Sebep (opsiyonel)</label>
+              <div className="filter-group">
+                <span>Berber</span>
+                <select value={filters.barberId} onChange={(e) => setFilters({ ...filters, barberId: e.target.value })}>
+                  <option value="">Hepsi</option>
+                  <option value="1">Hıdır Yasin Gökçeoğlu</option>
+                  <option value="2">Emir Gökçeoğlu</option>
+                </select>
+              </div>
+              <div className="filter-group">
+                <span>Tarih</span>
                 <input
-                  type="text"
-                  value={closedDateForm.reason}
-                  onChange={(e) => setClosedDateForm({ ...closedDateForm, reason: e.target.value })}
-                  placeholder="Örn: Tatil, bakım..."
+                  type="date"
+                  value={filters.date}
+                  onChange={(e) => setFilters({ ...filters, date: e.target.value })}
                 />
               </div>
-              <div className="form-actions">
-                <button type="button" className="outline" onClick={() => setShowClosedDateForm(false)}>Vazgeç</button>
-                <button type="submit" className="primary">Kaydet</button>
+              <div className="filter-actions">
+                <button className="outline" onClick={() => setFilters({ status: '', barberId: '', date: '' })}>Temizle</button>
+                <button className="primary" onClick={() => { setShowFilters(false); loadBookings() }}>Uygula</button>
               </div>
-            </form>
+            </div>
           )}
 
-          {closedDates.length === 0 ? (
-            <div className="empty small">Kapalı tarih aralığı yok</div>
-          ) : (
-            <div className="closed-list">
-              {closedDates.map((closedDate) => (
-                <div key={closedDate.id} className="closed-item">
-                  <div>
-                    <div className="closed-dates">
-                      <span>{closedDate.start_date}</span>
-                      <ChevronRight size={14} />
-                      <span>{closedDate.end_date}</span>
-                    </div>
-                    {closedDate.reason && <p className="muted tiny">{closedDate.reason}</p>}
+          <section className="card calendar-card">
+            <div className="calendar-header">
+              <div>
+                <p className="muted">14 günlük görünüm</p>
+                <strong>{format(horizonStart, 'd MMM', { locale: tr })} - {format(horizonEnd, 'd MMM', { locale: tr })}</strong>
+              </div>
+            </div>
+            <div className="day-strip">
+              {bookingsByDate.map(({ date, label, bookings: list }) => (
+                <button
+                  key={date}
+                  className={`day-tile ${list.length ? 'has-booking' : ''} ${isSameDay(parseISO(date), horizonStart) ? 'is-today' : ''}`}
+                  onClick={() => openDay(date, list)}
+                >
+                  <div className="day-tile-head">
+                    <span className="day-label">{label}</span>
+                    {list.length > 0 && <span className="count-chip">{list.length}</span>}
                   </div>
-                  <button className="icon-btn danger" onClick={() => handleDeleteClosedDate(closedDate.id)}>
-                    <Trash2 size={16} />
-                  </button>
-                </div>
+                  <div className="day-tile-body">
+                    {list.length === 0 ? <p className="muted tiny">Kayıt yok</p> : <p className="muted tiny">Detay için dokun</p>}
+                  </div>
+                </button>
               ))}
             </div>
-          )}
-        </section>
-    </div>
-      </main >
+          </section>
 
-    { showDetailSheet && (
-      <div className="sheet-backdrop" onClick={closeSheet}>
-        <div className="sheet solid" onClick={(e) => e.stopPropagation()}>
-          <div className="sheet-header">
-            <div>
-              <p className="muted tiny">{selectedDay}</p>
-              <h3>Randevular</h3>
+          <section className="card closed-card">
+            <div className="closed-header">
+              <div>
+                <h3>Kapalı Tarihler</h3>
+                <p className="muted">Aralık ekle/sil</p>
+              </div>
+              <button className="refresh-btn" onClick={() => setShowClosedDateForm(!showClosedDateForm)}>
+                {showClosedDateForm ? 'İptal' : 'Yeni Ekle'}
+              </button>
             </div>
-            <button className="icon-btn" onClick={closeSheet}>
-              <XCircle size={18} />
-            </button>
-          </div>
-          {dayBookings.length === 0 ? (
-            <div className="empty small">Randevu yok</div>
-          ) : (
-            <div className="day-booking-list">
-              {dayBookings.map((booking) => (
-                <div key={booking.id} className="booking-item">
-                  <div className="booking-main">
-                    <div className="booking-top">
-                      <div>
-                        <div className="booking-name">{booking.customer_name}</div>
-                        <div className="booking-phone">{booking.customer_phone}</div>
-                      </div>
-                      <div>{getStatusBadge(booking.status)}</div>
-                    </div>
-                    <div className="booking-meta">
-                      <span>{booking.appointment_time}</span>
-                      <span className="price">{booking.service_price}₺</span>
-                    </div>
-                    <div className="booking-meta">
-                      <span>{booking.barber_name}</span>
-                      <span>•</span>
-                      <span>{booking.service_name}</span>
-                    </div>
+
+            {showClosedDateForm && (
+              <form onSubmit={handleCreateClosedDate} className="closed-form">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Başlangıç</label>
+                    <input
+                      type="date"
+                      value={closedDateForm.start_date}
+                      onChange={(e) => setClosedDateForm({ ...closedDateForm, start_date: e.target.value })}
+                      required
+                    />
                   </div>
-                  <div className="booking-actions">
-                    {booking.status !== 'cancelled' && (
-                      <>
-                        <button className="icon-btn" onClick={() => handleCall(booking.customer_phone)} aria-label="Ara">
-                          <Phone size={16} />
-                        </button>
-                        <button className="icon-btn" onClick={() => handleMessage(booking.customer_phone)} aria-label="WhatsApp">
-                          <MessageSquare size={16} />
-                        </button>
-                        {booking.customer_email && (
-                          <button className="icon-btn" onClick={() => handleReminder(booking)} aria-label="Hatırlatma">
-                            <Send size={16} />
-                          </button>
-                        )}
-                      </>
-                    )}
-                    {booking.status !== 'cancelled' && (
-                      <button className="icon-btn warn" onClick={() => handleCancel(booking.id)} aria-label="İptal">
-                        <XCircle size={16} />
-                      </button>
-                    )}
-                    <button className="icon-btn danger" onClick={() => handleDelete(booking.id)} aria-label="Sil">
+                  <div className="form-group">
+                    <label>Bitiş</label>
+                    <input
+                      type="date"
+                      value={closedDateForm.end_date}
+                      onChange={(e) => setClosedDateForm({ ...closedDateForm, end_date: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Sebep (opsiyonel)</label>
+                  <input
+                    type="text"
+                    value={closedDateForm.reason}
+                    onChange={(e) => setClosedDateForm({ ...closedDateForm, reason: e.target.value })}
+                    placeholder="Örn: Tatil, bakım..."
+                  />
+                </div>
+                <div className="form-actions">
+                  <button type="button" className="outline" onClick={() => setShowClosedDateForm(false)}>Vazgeç</button>
+                  <button type="submit" className="primary">Kaydet</button>
+                </div>
+              </form>
+            )}
+
+            {closedDates.length === 0 ? (
+              <div className="empty small">Kapalı tarih aralığı yok</div>
+            ) : (
+              <div className="closed-list">
+                {closedDates.map((closedDate) => (
+                  <div key={closedDate.id} className="closed-item">
+                    <div>
+                      <div className="closed-dates">
+                        <span>{closedDate.start_date}</span>
+                        <ChevronRight size={14} />
+                        <span>{closedDate.end_date}</span>
+                      </div>
+                      {closedDate.reason && <p className="muted tiny">{closedDate.reason}</p>}
+                    </div>
+                    <button className="icon-btn danger" onClick={() => handleDeleteClosedDate(closedDate.id)}>
                       <Trash2 size={16} />
                     </button>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    )
-}
-
-<div className="admin-footer-actions" style={{ padding: '20px', textAlign: 'center' }}>
-  <button
-    className="golden-button outline"
-    onClick={() => navigate('/admin/stats')}
-    style={{ width: '100%', maxWidth: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', margin: '0 auto' }}
-  >
-    <TrendingUp size={20} />
-    İstatistikler ve Raporlar
-  </button>
-</div>
-
-{/* Create Booking Modal */ }
-{
-  showCreateBookingModal && (
-    <div className="modal-overlay" onClick={() => setShowCreateBookingModal(false)}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>Yeni Randevu Oluştur</h2>
-          <button className="modal-close" onClick={() => setShowCreateBookingModal(false)}>
-            <X size={20} />
-          </button>
-        </div>
-        <form onSubmit={handleCreateBooking} className="create-booking-form">
-          <div className="form-row">
-            <div className="form-group">
-              <label>Berber *</label>
-              <select
-                value={createBookingForm.barberId}
-                onChange={(e) => {
-                  const newBarberId = e.target.value
-                  setCreateBookingForm({ ...createBookingForm, barberId: newBarberId, appointmentTime: '' })
-                  if (newBarberId && createBookingForm.appointmentDate) {
-                    loadAdminAvailableTimes(newBarberId, createBookingForm.appointmentDate)
-                  }
-                }}
-                required
-              >
-                <option value="">Seçiniz</option>
-                {Object.values(barbers).map(barber => (
-                  <option key={barber.id} value={barber.barber_id || barber.id}>{barber.name}</option>
                 ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Tarih *</label>
-              <input
-                type="date"
-                value={createBookingForm.appointmentDate}
-                onChange={(e) => {
-                  const newDate = e.target.value
-                  setCreateBookingForm({ ...createBookingForm, appointmentDate: newDate, appointmentTime: '' })
-                  if (newDate && createBookingForm.barberId) {
-                    loadAdminAvailableTimes(createBookingForm.barberId, newDate)
-                  }
-                }}
-                min={format(new Date(), 'yyyy-MM-dd')}
-                required
-              />
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Saat *</label>
-              {loadingAvailableTimes ? (
-                <div>Yükleniyor...</div>
-              ) : (
-                <select
-                  value={createBookingForm.appointmentTime}
-                  onChange={(e) => setCreateBookingForm({ ...createBookingForm, appointmentTime: e.target.value })}
-                  required
-                  disabled={!createBookingForm.barberId || !createBookingForm.appointmentDate}
-                >
-                  <option value="">Seçiniz</option>
-                  {availableTimesForDate.map(time => (
-                    <option key={time} value={time}>{time}</option>
-                  ))}
-                  {availableTimesForDate.length === 0 && createBookingForm.barberId && createBookingForm.appointmentDate && (
-                    <option disabled>Bu tarihte müsait saat yok</option>
-                  )}
-                </select>
-              )}
-            </div>
-            <div className="form-group">
-              <label>Hizmet *</label>
-              <select
-                value={createBookingForm.serviceName}
-                onChange={(e) => {
-                  const selected = services.find(s => s.name === e.target.value)
-                  setCreateBookingForm({
-                    ...createBookingForm,
-                    serviceName: e.target.value,
-                    servicePrice: selected ? selected.price.toString() : ''
-                  })
-                }}
-                required
-              >
-                <option value="">Seçiniz</option>
-                {services.map(service => (
-                  <option key={service.id} value={service.name}>
-                    {service.name}
-                  </option>
-                ))}
-              </select>
-              {createBookingForm.serviceName && (
-                <div style={{ marginTop: '8px', fontSize: '14px', color: '#FFD700', fontWeight: 'bold' }}>
-                  Fiyat: {services.find(s => s.name === createBookingForm.serviceName)?.price || 0}₺
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="form-group">
-            <label>Müşteri Adı *</label>
-            <input
-              type="text"
-              value={createBookingForm.customerName}
-              onChange={(e) => setCreateBookingForm({ ...createBookingForm, customerName: e.target.value })}
-              required
-            />
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Telefon *</label>
-              <input
-                type="tel"
-                value={createBookingForm.customerPhone}
-                onChange={(e) => {
-                  let val = e.target.value.replace(/[^0-9]/g, '');
-                  if (val.startsWith('0')) val = val.substring(1);
-                  if (val.length > 10) val = val.substring(0, 10);
-                  setCreateBookingForm({ ...createBookingForm, customerPhone: val });
-                }}
-                placeholder="5XX XXX XX XX"
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Email</label>
-              <input
-                type="email"
-                value={createBookingForm.customerEmail}
-                onChange={(e) => setCreateBookingForm({ ...createBookingForm, customerEmail: e.target.value })}
-              />
-            </div>
-          </div>
-          <div className="modal-actions">
-            <button type="button" className="btn-secondary" onClick={() => setShowCreateBookingModal(false)}>
-              İptal
-            </button>
-            <button type="submit" className="btn-primary" disabled={creatingBooking}>
-              {creatingBooking ? 'Oluşturuluyor...' : 'Randevu Oluştur'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
+              </div>
+            )}
+          </section>
+        </div>
+      </main >
 
-{/* Daily Report Section */ }
-<div className="daily-report-section">
-  <div className="container">
-    <div className="daily-report-card">
-      <h3>Günlük Rapor Gönder</h3>
-      <p>Seçtiğiniz gündeki tüm randevular bilgileriyle beraber admin emailine gönderilir.</p>
-      <div className="report-form">
-        <input
-          type="date"
-          value={reportDate}
-          onChange={(e) => setReportDate(e.target.value)}
-          max={format(addDays(new Date(), 13), 'yyyy-MM-dd')}
-          min={format(new Date(), 'yyyy-MM-dd')}
-          className="report-date-input"
-        />
+      {showDetailSheet && (
+        <div className="sheet-backdrop" onClick={closeSheet}>
+          <div className="sheet solid" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-header">
+              <div>
+                <p className="muted tiny">{selectedDay}</p>
+                <h3>Randevular</h3>
+              </div>
+              <button className="icon-btn" onClick={closeSheet}>
+                <XCircle size={18} />
+              </button>
+            </div>
+            {dayBookings.length === 0 ? (
+              <div className="empty small">Randevu yok</div>
+            ) : (
+              <div className="day-booking-list">
+                {dayBookings.map((booking) => (
+                  <div key={booking.id} className="booking-item">
+                    <div className="booking-main">
+                      <div className="booking-top">
+                        <div>
+                          <div className="booking-name">{booking.customer_name}</div>
+                          <div className="booking-phone">{booking.customer_phone}</div>
+                        </div>
+                        <div>{getStatusBadge(booking.status)}</div>
+                      </div>
+                      <div className="booking-meta">
+                        <span>{booking.appointment_time}</span>
+                        <span className="price">{booking.service_price}₺</span>
+                      </div>
+                      <div className="booking-meta">
+                        <span>{booking.barber_name}</span>
+                        <span>•</span>
+                        <span>{booking.service_name}</span>
+                      </div>
+                    </div>
+                    <div className="booking-actions">
+                      {booking.status !== 'cancelled' && (
+                        <>
+                          <button className="icon-btn" onClick={() => handleCall(booking.customer_phone)} aria-label="Ara">
+                            <Phone size={16} />
+                          </button>
+                          <button className="icon-btn" onClick={() => handleMessage(booking.customer_phone)} aria-label="WhatsApp">
+                            <MessageSquare size={16} />
+                          </button>
+                          {booking.customer_email && (
+                            <button className="icon-btn" onClick={() => handleReminder(booking)} aria-label="Hatırlatma">
+                              <Send size={16} />
+                            </button>
+                          )}
+                        </>
+                      )}
+                      {booking.status !== 'cancelled' && (
+                        <button className="icon-btn warn" onClick={() => handleCancel(booking.id)} aria-label="İptal">
+                          <XCircle size={16} />
+                        </button>
+                      )}
+                      <button className="icon-btn danger" onClick={() => handleDelete(booking.id)} aria-label="Sil">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )
+      }
+
+      <div className="admin-footer-actions" style={{ padding: '20px', textAlign: 'center' }}>
         <button
-          onClick={handleSendDailyReport}
-          disabled={sendingReport || !reportDate}
-          className="send-report-btn"
+          className="golden-button outline"
+          onClick={() => navigate('/admin/stats')}
+          style={{ width: '100%', maxWidth: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', margin: '0 auto' }}
         >
-          {sendingReport ? 'Gönderiliyor...' : 'Raporu Email Gönder'}
+          <TrendingUp size={20} />
+          İstatistikler ve Raporlar
         </button>
       </div>
-    </div>
-  </div>
-</div>
 
-{
-  toast && (
-    <Toast
-      message={toast.message}
-      type={toast.type}
-      onClose={() => setToast(null)}
-      duration={toast.type === 'error' ? 7000 : 5000}
-    />
-  )
-}
+      {/* Create Booking Modal */}
+      {
+        showCreateBookingModal && (
+          <div className="modal-overlay" onClick={() => setShowCreateBookingModal(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Yeni Randevu Oluştur</h2>
+                <button className="modal-close" onClick={() => setShowCreateBookingModal(false)}>
+                  <X size={20} />
+                </button>
+              </div>
+              <form onSubmit={handleCreateBooking} className="create-booking-form">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Berber *</label>
+                    <select
+                      value={createBookingForm.barberId}
+                      onChange={(e) => {
+                        const newBarberId = e.target.value
+                        setCreateBookingForm({ ...createBookingForm, barberId: newBarberId, appointmentTime: '' })
+                        if (newBarberId && createBookingForm.appointmentDate) {
+                          loadAdminAvailableTimes(newBarberId, createBookingForm.appointmentDate)
+                        }
+                      }}
+                      required
+                    >
+                      <option value="">Seçiniz</option>
+                      {Object.values(barbers).map(barber => (
+                        <option key={barber.id} value={barber.barber_id || barber.id}>{barber.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Tarih *</label>
+                    <input
+                      type="date"
+                      value={createBookingForm.appointmentDate}
+                      onChange={(e) => {
+                        const newDate = e.target.value
+                        setCreateBookingForm({ ...createBookingForm, appointmentDate: newDate, appointmentTime: '' })
+                        if (newDate && createBookingForm.barberId) {
+                          loadAdminAvailableTimes(createBookingForm.barberId, newDate)
+                        }
+                      }}
+                      min={format(new Date(), 'yyyy-MM-dd')}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Saat *</label>
+                    {loadingAvailableTimes ? (
+                      <div>Yükleniyor...</div>
+                    ) : (
+                      <select
+                        value={createBookingForm.appointmentTime}
+                        onChange={(e) => setCreateBookingForm({ ...createBookingForm, appointmentTime: e.target.value })}
+                        required
+                        disabled={!createBookingForm.barberId || !createBookingForm.appointmentDate}
+                      >
+                        <option value="">Seçiniz</option>
+                        {availableTimesForDate.map(time => (
+                          <option key={time} value={time}>{time}</option>
+                        ))}
+                        {availableTimesForDate.length === 0 && createBookingForm.barberId && createBookingForm.appointmentDate && (
+                          <option disabled>Bu tarihte müsait saat yok</option>
+                        )}
+                      </select>
+                    )}
+                  </div>
+                  <div className="form-group">
+                    <label>Hizmet *</label>
+                    <select
+                      value={createBookingForm.serviceName}
+                      onChange={(e) => {
+                        const selected = services.find(s => s.name === e.target.value)
+                        setCreateBookingForm({
+                          ...createBookingForm,
+                          serviceName: e.target.value,
+                          servicePrice: selected ? selected.price.toString() : ''
+                        })
+                      }}
+                      required
+                    >
+                      <option value="">Seçiniz</option>
+                      {services.map(service => (
+                        <option key={service.id} value={service.name}>
+                          {service.name}
+                        </option>
+                      ))}
+                    </select>
+                    {createBookingForm.serviceName && (
+                      <div style={{ marginTop: '8px', fontSize: '14px', color: '#FFD700', fontWeight: 'bold' }}>
+                        Fiyat: {services.find(s => s.name === createBookingForm.serviceName)?.price || 0}₺
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Müşteri Adı *</label>
+                  <input
+                    type="text"
+                    value={createBookingForm.customerName}
+                    onChange={(e) => setCreateBookingForm({ ...createBookingForm, customerName: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Telefon *</label>
+                    <input
+                      type="tel"
+                      value={createBookingForm.customerPhone}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/[^0-9]/g, '');
+                        if (val.startsWith('0')) val = val.substring(1);
+                        if (val.length > 10) val = val.substring(0, 10);
+                        setCreateBookingForm({ ...createBookingForm, customerPhone: val });
+                      }}
+                      placeholder="5XX XXX XX XX"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Email</label>
+                    <input
+                      type="email"
+                      value={createBookingForm.customerEmail}
+                      onChange={(e) => setCreateBookingForm({ ...createBookingForm, customerEmail: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="modal-actions">
+                  <button type="button" className="btn-secondary" onClick={() => setShowCreateBookingModal(false)}>
+                    İptal
+                  </button>
+                  <button type="submit" className="btn-primary" disabled={creatingBooking}>
+                    {creatingBooking ? 'Oluşturuluyor...' : 'Randevu Oluştur'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )
+      }
+
+      {/* Daily Report Section */}
+      <div className="daily-report-section">
+        <div className="container">
+          <div className="daily-report-card">
+            <h3>Günlük Rapor Gönder</h3>
+            <p>Seçtiğiniz gündeki tüm randevular bilgileriyle beraber admin emailine gönderilir.</p>
+            <div className="report-form">
+              <input
+                type="date"
+                value={reportDate}
+                onChange={(e) => setReportDate(e.target.value)}
+                max={format(addDays(new Date(), 13), 'yyyy-MM-dd')}
+                min={format(new Date(), 'yyyy-MM-dd')}
+                className="report-date-input"
+              />
+              <button
+                onClick={handleSendDailyReport}
+                disabled={sendingReport || !reportDate}
+                className="send-report-btn"
+              >
+                {sendingReport ? 'Gönderiliyor...' : 'Raporu Email Gönder'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {
+        toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+            duration={toast.type === 'error' ? 7000 : 5000}
+          />
+        )
+      }
     </div >
   )
 }

@@ -843,13 +843,7 @@ function AdminPage() {
                 <strong>{stats?.totalBookings ?? 0}</strong>
               </div>
             </div>
-            <div className="stat-chip">
-              <Calendar size={18} />
-              <div>
-                <p>Toplam</p>
-                <strong>{stats?.totalBookings ?? 0}</strong>
-              </div>
-            </div>
+
             <div className="stat-chip">
               <Clock size={18} />
               <div>

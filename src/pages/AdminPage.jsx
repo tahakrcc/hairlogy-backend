@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { LogOut, Calendar, Users, DollarSign, CheckCircle, XCircle, Clock, Trash2, Filter, Send, Phone, MessageSquare, ChevronRight, ChevronLeft, Plus, Scissors, X, Settings } from 'lucide-react'
+import { LogOut, Calendar, Users, DollarSign, CheckCircle, XCircle, Clock, Trash2, Filter, Send, Phone, MessageSquare, ChevronRight, ChevronLeft, Plus, Scissors, X, Settings, TrendingUp } from 'lucide-react'
 import { adminAPI, barbersAPI, servicesAPI, settingsAPI, default as api } from '../services/api'
 import Toast from '../components/Toast'
 import './AdminPage.css'

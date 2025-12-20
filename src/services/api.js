@@ -107,6 +107,7 @@ export const adminAPI = {
 
 export const settingsAPI = {
   getMaintenanceMode: () => api.get('/settings/maintenance'),
+  trackVisit: () => api.post('/visit')
 };
 
 export default api;

@@ -86,16 +86,20 @@
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .last-refresh {
   font-size: 12px;
   opacity: 0.7;
 }
-  background: rgba(188, 136, 27, 0.1);
-}
+
 
 .booking-main {
   padding: 40px 0;
@@ -587,44 +591,44 @@
   .calendar-view {
     padding: 16px;
   }
-  
+
   .calendar-header {
     margin-bottom: 16px;
     padding-bottom: 12px;
   }
-  
+
   .calendar-month-title {
     font-size: 18px;
   }
-  
+
   .calendar-nav-btn {
     width: 36px;
     height: 36px;
   }
-  
+
   .calendar-weekdays {
     gap: 4px;
     margin-bottom: 8px;
   }
-  
+
   .calendar-weekday {
     font-size: 11px;
     padding: 6px;
   }
-  
+
   .calendar-days {
     gap: 4px;
   }
-  
+
   .calendar-day {
     padding: 6px;
     border-radius: 8px;
   }
-  
+
   .calendar-day-number {
     font-size: 14px;
   }
-  
+
   .indicator-dot {
     width: 5px;
     height: 5px;
@@ -635,25 +639,25 @@
   .calendar-view {
     padding: 12px;
   }
-  
+
   .calendar-month-title {
     font-size: 16px;
   }
-  
+
   .calendar-nav-btn {
     width: 32px;
     height: 32px;
   }
-  
+
   .calendar-weekday {
     font-size: 10px;
     padding: 4px;
   }
-  
+
   .calendar-day-number {
     font-size: 12px;
   }
-  
+
   .indicator-dot {
     width: 4px;
     height: 4px;
@@ -710,14 +714,12 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-image: 
-    repeating-linear-gradient(
-      45deg,
+  background-image:
+    repeating-linear-gradient(45deg,
       transparent,
       transparent 5px,
       rgba(0, 0, 0, 0.1) 5px,
-      rgba(0, 0, 0, 0.1) 10px
-    );
+      rgba(0, 0, 0, 0.1) 10px);
   pointer-events: none;
   opacity: 0.3;
 }
@@ -1062,16 +1064,16 @@
     grid-template-columns: 1fr;
     gap: 40px;
   }
-  
+
   .booking-summary {
     position: static;
   }
-  
+
   .dates-grid {
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     gap: 12px;
   }
-  
+
   .times-grid {
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     gap: 10px;
@@ -1091,71 +1093,71 @@
   .booking-main {
     padding: 30px 0;
   }
-  
+
   .booking-steps {
     gap: 28px;
   }
-  
+
   .step {
     gap: 16px;
     margin-bottom: 24px;
   }
-  
+
   .step.collapsed {
     margin-bottom: 12px;
   }
-  
+
   .step-number {
     width: 40px;
     height: 40px;
     font-size: 16px;
   }
-  
+
   .step-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
     margin-bottom: 20px;
   }
-  
+
   .step-content h3 {
     font-size: 20px;
     margin: 0;
   }
-  
+
   .edit-step-btn,
   .back-step-btn {
     font-size: 13px;
     padding: 6px 12px;
   }
-  
+
   .selected-item {
     gap: 12px;
   }
-  
+
   .selected-value {
     font-size: 16px;
   }
-  
+
   .dates-grid {
     grid-template-columns: repeat(4, 1fr);
     gap: 10px;
   }
-  
+
   .date-card {
     padding: 16px 10px;
     min-height: 110px;
   }
-  
+
   .day-number {
     font-size: 28px;
   }
-  
+
   .times-grid {
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
   }
-  
+
   .time-slot {
     padding: 14px 8px;
     font-size: 14px;
@@ -1239,37 +1241,37 @@
   .booking-main {
     padding: 20px 0;
   }
-  
+
   .booking-steps {
     gap: 24px;
   }
-  
+
   .step {
     gap: 12px;
     margin-bottom: 20px;
   }
-  
+
   .step.collapsed {
     margin-bottom: 10px;
   }
-  
+
   .step-number {
     width: 36px;
     height: 36px;
     font-size: 14px;
   }
-  
+
   .step-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
     margin-bottom: 16px;
   }
-  
+
   .step-content h3 {
     font-size: 18px;
   }
-  
+
   .edit-step-btn,
   .back-step-btn {
     font-size: 12px;
@@ -1277,28 +1279,28 @@
     width: 100%;
     justify-content: center;
   }
-  
+
   .step-selected {
     padding: 16px;
   }
-  
+
   .selected-item {
     gap: 12px;
   }
-  
+
   .selected-label {
     font-size: 11px;
   }
-  
+
   .selected-value {
     font-size: 15px;
   }
-  
+
   .dates-grid {
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
   }
-  
+
   .date-card {
     padding: 14px 8px;
     min-height: 100px;
@@ -1316,23 +1318,23 @@
   .month {
     font-size: 11px;
   }
-  
+
   .availability-badge {
     font-size: 9px;
     padding: 3px 6px;
   }
-  
+
   .times-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
   }
-  
+
   .time-slot {
     padding: 12px 8px;
     font-size: 14px;
     min-height: 52px;
   }
-  
+
   .service-option {
     padding: 16px;
     gap: 12px;
@@ -1345,7 +1347,7 @@
   .service-details {
     font-size: 13px;
   }
-  
+
   .form-group input {
     padding: 14px 16px;
     font-size: 16px;
@@ -1354,13 +1356,13 @@
   .form-group label {
     font-size: 14px;
   }
-  
+
   .submit-btn {
     padding: 16px;
     font-size: 16px;
     min-height: 52px;
   }
-  
+
   .booking-summary {
     padding: 24px;
     border-radius: 16px;
@@ -1371,7 +1373,7 @@
     margin-bottom: 20px;
     padding-bottom: 16px;
   }
-  
+
   .summary-item {
     padding: 10px 0;
     flex-wrap: wrap;
@@ -1392,7 +1394,7 @@
   .summary-item.total {
     font-size: 18px;
   }
-  
+
   .summary-item.total .summary-value {
     font-size: 20px;
   }
@@ -1431,6 +1433,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -1454,6 +1457,7 @@
     transform: translateY(50px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -1508,9 +1512,11 @@
   0% {
     transform: scale(0);
   }
+
   50% {
     transform: scale(1.1);
   }
+
   100% {
     transform: scale(1);
   }
@@ -1793,7 +1799,7 @@
     grid-template-columns: 1fr;
     gap: 32px;
   }
-  
+
   .booking-summary {
     position: relative;
     top: 0;
@@ -1804,122 +1810,122 @@
   .booking-header {
     padding: 16px 0;
   }
-  
+
   .booking-header h1 {
     font-size: 20px;
   }
-  
+
   .back-btn {
     font-size: 13px;
     padding: 6px 10px;
   }
-  
+
   .booking-main {
     padding: 24px 0;
   }
-  
+
   .booking-content {
     grid-template-columns: 1fr;
     gap: 24px;
   }
-  
+
   .booking-steps {
     gap: 32px;
   }
-  
+
   .step {
     gap: 16px;
     margin-bottom: 24px;
   }
-  
+
   .step-number {
     width: 40px;
     height: 40px;
     font-size: 18px;
   }
-  
+
   .step-header {
     flex-wrap: wrap;
     gap: 12px;
   }
-  
+
   .step-header h3 {
     font-size: 18px;
   }
-  
+
   .dates-grid {
     grid-template-columns: repeat(4, 1fr);
     gap: 12px;
   }
-  
+
   .date-card {
     padding: 12px 8px;
   }
-  
+
   .day-name {
     font-size: 11px;
   }
-  
+
   .day-number {
     font-size: 20px;
   }
-  
+
   .month {
     font-size: 11px;
   }
-  
+
   .times-grid {
     grid-template-columns: repeat(3, 1fr);
     gap: 12px;
   }
-  
+
   .time-slot {
     padding: 14px 8px;
     font-size: 14px;
   }
-  
+
   .service-option {
     padding: 16px;
   }
-  
+
   .service-name {
     font-size: 16px;
   }
-  
+
   .service-details {
     font-size: 13px;
   }
-  
+
   .booking-form {
     padding: 24px;
   }
-  
+
   .form-group label {
     font-size: 14px;
   }
-  
+
   .form-group input {
     font-size: 15px;
     padding: 12px 16px;
   }
-  
+
   .submit-btn {
     padding: 14px 32px;
     font-size: 15px;
   }
-  
+
   .booking-summary {
     padding: 24px;
   }
-  
+
   .booking-summary h3 {
     font-size: 20px;
   }
-  
+
   .summary-item {
     font-size: 14px;
   }
-  
+
   .success-modal-overlay {
     padding: 10px;
   }
@@ -2018,136 +2024,136 @@
   .booking-header {
     padding: 14px 0;
   }
-  
+
   .booking-header h1 {
     font-size: 18px;
     margin-top: 8px;
   }
-  
+
   .back-btn {
     font-size: 12px;
     padding: 6px 8px;
   }
-  
+
   .back-btn svg {
     width: 16px;
     height: 16px;
   }
-  
+
   .booking-main {
     padding: 20px 0;
   }
-  
+
   .booking-steps {
     gap: 24px;
   }
-  
+
   .step {
     gap: 12px;
     margin-bottom: 20px;
   }
-  
+
   .step-number {
     width: 36px;
     height: 36px;
     font-size: 16px;
   }
-  
+
   .step-header h3 {
     font-size: 16px;
   }
-  
+
   .edit-step-btn,
   .back-step-btn {
     font-size: 12px;
     padding: 6px 10px;
   }
-  
+
   .dates-grid {
     grid-template-columns: repeat(3, 1fr);
     gap: 10px;
   }
-  
+
   .date-card {
     padding: 10px 6px;
   }
-  
+
   .day-name {
     font-size: 10px;
   }
-  
+
   .day-number {
     font-size: 18px;
   }
-  
+
   .month {
     font-size: 10px;
   }
-  
+
   .availability-badge {
     font-size: 9px;
     padding: 2px 6px;
   }
-  
+
   .times-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
   }
-  
+
   .time-slot {
     padding: 12px 6px;
     font-size: 13px;
   }
-  
+
   .service-option {
     padding: 14px;
   }
-  
+
   .service-name {
     font-size: 15px;
   }
-  
+
   .service-details {
     font-size: 12px;
   }
-  
+
   .booking-form {
     padding: 20px;
   }
-  
+
   .form-group {
     margin-bottom: 18px;
   }
-  
+
   .form-group label {
     font-size: 13px;
   }
-  
+
   .form-group input {
     font-size: 14px;
     padding: 10px 14px;
   }
-  
+
   .submit-btn {
     padding: 12px 28px;
     font-size: 14px;
     width: 100%;
   }
-  
+
   .booking-summary {
     padding: 20px;
   }
-  
+
   .booking-summary h3 {
     font-size: 18px;
     margin-bottom: 16px;
   }
-  
+
   .summary-item {
     font-size: 13px;
     padding: 10px 0;
   }
-  
+
   .success-modal-overlay {
     padding: 10px;
   }
@@ -2160,7 +2166,7 @@
     width: 56px;
     height: 56px;
   }
-  
+
   .success-icon svg {
     width: 40px;
     height: 40px;
@@ -2200,66 +2206,66 @@
   .receipt-value-large {
     font-size: 20px;
   }
-  
+
   .download-btn,
   .close-btn {
     padding: 10px 16px;
     font-size: 13px;
   }
-  
+
   .success-modal {
     max-width: 95%;
     margin: 10px;
   }
-  
+
   .success-header {
     padding: 20px 16px 16px;
   }
-  
+
   .success-header h2 {
     font-size: 20px;
   }
-  
+
   .success-icon {
     width: 50px;
     height: 50px;
   }
-  
+
   .booking-receipt {
     padding: 16px;
     margin: 12px;
   }
-  
+
   .receipt-header-compact {
     margin-bottom: 16px;
     padding-bottom: 12px;
   }
-  
+
   .receipt-title-compact h2 {
     font-size: 16px;
   }
-  
+
   .receipt-row {
     padding: 8px 0;
   }
-  
+
   .receipt-label-compact {
     font-size: 12px;
   }
-  
+
   .receipt-value-compact {
     font-size: 13px;
   }
-  
+
   .receipt-value-large-compact {
     font-size: 18px;
   }
-  
+
   .success-actions {
     padding: 12px 16px 16px;
     flex-direction: column;
   }
-  
+
   .download-btn,
   .close-btn {
     width: 100%;

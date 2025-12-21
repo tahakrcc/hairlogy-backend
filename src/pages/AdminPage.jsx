@@ -33,7 +33,7 @@ function AdminPage() {
   const [dayBookings, setDayBookings] = useState([])
   const [closedDates, setClosedDates] = useState([])
   const [showClosedDateForm, setShowClosedDateForm] = useState(false)
-  const [closedDateForm, setClosedDateForm] = useState({ start_date: '', end_date: '', reason: '' })
+  const [closedDateForm, setClosedDateForm] = useState({ start_date: '', end_date: '', reason: '', barberId: '' })
   const [showFilters, setShowFilters] = useState(false)
   const [showCreateBookingModal, setShowCreateBookingModal] = useState(false)
   const [createBookingForm, setCreateBookingForm] = useState({
@@ -111,15 +111,7 @@ function AdminPage() {
     }
   }, [filters, showAllBookings])
 
-  // Debugging logs (Correct Placement)
-  useEffect(() => {
-    console.log('Admin Page Version: 1.0.3 (Debug)');
-    console.log('Barbers Data:', barbers);
-    if (isAuthenticated && Object.keys(barbers).length > 0) {
-      // Toast shows strictly for debug visibility
-      console.log('Debug: v1.0.3 - Barbers Loaded');
-    }
-  }, [barbers, isAuthenticated]);
+
 
   const checkBackendConnection = async () => {
     try {
@@ -376,7 +368,9 @@ function AdminPage() {
       const response = await barbersAPI.getAll()
       const barbersMap = {}
       response.data.forEach(barber => {
-        barbersMap[barber.id] = barber
+        // Use barber_id (1, 2) as key if available, otherwise fallback to _id
+        const key = barber.barber_id || barber.id
+        barbersMap[key] = barber
       })
       setBarbers(barbersMap)
     } catch (error) {
@@ -443,7 +437,7 @@ function AdminPage() {
     e.preventDefault()
     try {
       await adminAPI.createClosedDate(closedDateForm)
-      setClosedDateForm({ start_date: '', end_date: '', reason: '' })
+      setClosedDateForm({ start_date: '', end_date: '', reason: '', barberId: '' })
       setShowClosedDateForm(false)
       loadClosedDates()
       setToast({ message: 'Kapalı tarih aralığı eklendi', type: 'success' })
@@ -710,10 +704,25 @@ function AdminPage() {
 
   const bookingsByDate = horizonDays.map((day) => {
     const formatted = format(day, 'yyyy-MM-dd')
+    const isClosed = closedDates.some(cd => {
+      const start = cd.start_date
+      const end = cd.end_date
+      if (formatted >= start && formatted <= end) {
+        // If viewing specific barber, check if close applies to them
+        if (filters.barberId) {
+          return !cd.barber_id || String(cd.barber_id) === String(filters.barberId)
+        }
+        // If viewing All, only show closed if GLOBAL close (or maybe if all barbers closed, but checking global is safer for "shop closed")
+        return !cd.barber_id
+      }
+      return false
+    })
+
     return {
       date: formatted,
       label: format(day, "d MMM, EEEE", { locale: tr }),
-      bookings: filteredBookings.filter((b) => b.appointment_date === formatted)
+      bookings: filteredBookings.filter((b) => b.appointment_date === formatted),
+      isClosed
     }
   })
 
@@ -930,18 +939,25 @@ function AdminPage() {
               </div>
             </div>
             <div className="day-strip">
-              {bookingsByDate.map(({ date, label, bookings: list }) => (
+              {bookingsByDate.map(({ date, label, bookings: list, isClosed }) => (
                 <button
                   key={date}
-                  className={`day-tile ${list.length ? 'has-booking' : ''} ${isSameDay(parseISO(date), horizonStart) ? 'is-today' : ''}`}
+                  className={`day-tile ${list.length ? 'has-booking' : ''} ${isSameDay(parseISO(date), horizonStart) ? 'is-today' : ''} ${isClosed ? 'is-closed' : ''}`}
                   onClick={() => openDay(date, list)}
                 >
                   <div className="day-tile-head">
                     <span className="day-label">{label}</span>
                     {list.length > 0 && <span className="count-chip">{list.length}</span>}
+                    {isClosed && <span className="status-badge error" style={{ fontSize: '10px', padding: '2px 6px' }}>KAPALI</span>}
                   </div>
                   <div className="day-tile-body">
-                    {list.length === 0 ? <p className="muted tiny">Kayıt yok</p> : <p className="muted tiny">Detay için dokun</p>}
+                    {isClosed ? (
+                      <p className="muted tiny text-danger">Bu tarih kapalı</p>
+                    ) : list.length === 0 ? (
+                      <p className="muted tiny">Kayıt yok</p>
+                    ) : (
+                      <p className="muted tiny">Detay için dokun</p>
+                    )}
                   </div>
                 </button>
               ))}
@@ -990,6 +1006,19 @@ function AdminPage() {
                     placeholder="Örn: Tatil, bakım..."
                   />
                 </div>
+
+                <div className="form-group">
+                  <label>Berber (Opsiyonel)</label>
+                  <select
+                    value={closedDateForm.barberId || ''}
+                    onChange={(e) => setClosedDateForm({ ...closedDateForm, barberId: e.target.value })}
+                  >
+                    <option value="">Hepsi (Tüm Dükkan Kapalı)</option>
+                    {Object.values(barbers).map(barber => (
+                      <option key={barber.id} value={barber.barber_id}>{barber.name}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="form-actions">
                   <button type="button" className="outline" onClick={() => setShowClosedDateForm(false)}>Vazgeç</button>
                   <button type="submit" className="primary">Kaydet</button>
@@ -1010,6 +1039,16 @@ function AdminPage() {
                         <span>{closedDate.end_date}</span>
                       </div>
                       {closedDate.reason && <p className="muted tiny">{closedDate.reason}</p>}
+                      <span className="badge-barber">
+                        {(() => {
+                          if (!closedDate.barber_id) return 'Tümü';
+                          const b = Object.values(barbers).find(barber =>
+                            String(barber.barber_id) === String(closedDate.barber_id) ||
+                            String(barber.id) === String(closedDate.barber_id)
+                          );
+                          return b ? b.name : 'Bilinmeyen';
+                        })()}
+                      </span>
                     </div>
                     <button className="icon-btn danger" onClick={() => handleDeleteClosedDate(closedDate.id)}>
                       <Trash2 size={16} />

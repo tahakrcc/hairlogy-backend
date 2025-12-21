@@ -47,6 +47,7 @@ const closedDateSchema = new mongoose.Schema({
     start_date: { type: String, required: true }, // YYYY-MM-DD
     end_date: { type: String, required: true }, // YYYY-MM-DD
     reason: String,
+    barber_id: mongoose.Schema.Types.Mixed, // Optional: specific barber or null for all
     created_by: String
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 

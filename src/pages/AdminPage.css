@@ -1187,3 +1187,36 @@ select option:focus {
     border-radius: 14px 14px 0 0;
   }
 }
+
+/* Barber badge in closed dates list */
+.badge-barber {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  margin-left: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: inline-block;
+}
+
+.closed-dates {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Closed status styles */
+.day-tile.is-closed {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.text-danger {
+  color: #ef4444 !important;
+}
+
+.status-badge.error {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}

@@ -269,7 +269,13 @@ app.get('/api/available-times', async (req, res) => {
 
         const closedDate = await ClosedDate.findOne({
             start_date: { $lte: date },
-            end_date: { $gte: date }
+            end_date: { $gte: date },
+            $or: [
+                { barber_id: null },
+                { barber_id: { $exists: false } }, // Old records
+                { barber_id: Number(barberId) },
+                { barber_id: String(barberId) }
+            ]
         });
 
         if (closedDate) {
@@ -323,6 +329,14 @@ app.get('/api/available-times-batch', async (req, res) => {
             }))
         });
 
+        // Filter closed dates relevant to this barber (or global)
+        const relevantClosedDates = closedDates.filter(cd => {
+            // If no barber_id or null, it's global
+            if (!cd.barber_id) return true;
+            // If matches barberId (check both string/number)
+            return String(cd.barber_id) === String(barberId);
+        });
+
         const bookings = await Booking.find({
             barber_id: { $in: [Number(barberId), String(barberId)] },
             appointment_date: { $in: dateList },
@@ -330,7 +344,7 @@ app.get('/api/available-times-batch', async (req, res) => {
         });
 
         for (const date of dateList) {
-            const isClosed = closedDates.some(cd => date >= cd.start_date && date <= cd.end_date);
+            const isClosed = relevantClosedDates.some(cd => date >= cd.start_date && date <= cd.end_date);
             if (isClosed) {
                 results[date] = { availableTimes: [], bookedTimes: [], isClosed: true };
                 continue;
@@ -694,11 +708,12 @@ app.get('/api/admin/closed-dates', verifyToken, async (req, res) => {
 
 app.post('/api/admin/closed-dates', verifyToken, async (req, res) => {
     try {
-        const { start_date, end_date, reason } = req.body;
+        const { start_date, end_date, reason, barberId } = req.body;
         const newDate = await ClosedDate.create({
             start_date,
             end_date,
             reason,
+            barber_id: barberId || null, // If empty/null, it's for all
             created_by: req.user.username
         });
         res.json({ id: newDate._id, message: 'Created' });
@@ -715,6 +730,8 @@ app.delete('/api/admin/closed-dates/:id', verifyToken, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+
 
 // Admin Control: Toggle Maintenance Mode
 app.post('/api/admin/settings/maintenance', verifyToken, async (req, res) => {

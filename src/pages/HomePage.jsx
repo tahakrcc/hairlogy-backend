@@ -300,16 +300,41 @@ function HomePage() {
         <div className="container">
           <h2 className="section-title">{t('contact.title')}</h2>
           <div className="contact-grid">
-            <div className="contact-map">
-              <iframe
-                src="https://www.google.com/maps?q=%C4%B0n%C3%B6n%C3%BC,+%C4%B0n%C3%B6n%C3%BC+Cd.+No:174,+44090+Ye%C5%9Filyurt/Malatya&output=embed"
-                width="100%"
-                height="100%"
-                style={{ border: 0, borderRadius: '12px' }}
-                allowFullScreen=""
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-              ></iframe>
+            <div className="contact-content-wrapper">
+              <div className="contact-card">
+                <div className="contact-icon-wrapper">
+                  <Globe size={32} />
+                </div>
+                <h3>{t('contact.address')}</h3>
+                <a
+                  href="https://www.google.com/maps/search/?api=1&query=%C4%B0n%C3%B6n%C3%BC+Caddesi+No:174+Ye%C5%9Filyurt+Malatya"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="contact-link address-link"
+                >
+                  İnönü, İnönü Cd. No:174, 44090 Yeşilyurt/Malatya
+                </a>
+              </div>
+
+              <div className="contact-card">
+                <div className="contact-icon-wrapper">
+                  <MessageCircle size={32} />
+                </div>
+                <h3>{t('contact.phone')}</h3>
+                <a href="tel:+905418938744" className="contact-link">
+                  0541 893 87 44
+                </a>
+              </div>
+
+              <div className="contact-card">
+                <div className="contact-icon-wrapper">
+                  <Scissors size={32} />
+                </div>
+                <h3>{t('contact.email')}</h3>
+                <a href="mailto:hairlogyyasin@gmail.com" className="contact-link">
+                  hairlogyyasin@gmail.com
+                </a>
+              </div>
             </div>
           </div>
         </div>

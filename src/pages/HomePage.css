@@ -63,7 +63,8 @@
   justify-content: flex-start;
   align-items: center;
   position: relative;
-  padding-left: 140px; /* reserve space for logo so actions can align right */
+  padding-left: 140px;
+  /* reserve space for logo so actions can align right */
 }
 
 .logo {
@@ -151,7 +152,8 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-left: auto; /* push actions (Randevu Al + language) to the right */
+  margin-left: auto;
+  /* push actions (Randevu Al + language) to the right */
   position: relative;
   z-index: 10;
 }
@@ -225,7 +227,8 @@
     align-items: center;
     gap: 12px;
     flex-wrap: nowrap;
-    padding-left: 110px; /* keep header actions on the right for mobile */
+    padding-left: 110px;
+    /* keep header actions on the right for mobile */
   }
 
   .logo {
@@ -278,19 +281,19 @@
     opacity: 0.9;
     line-height: 1;
   }
-  
+
   .header-actions {
     display: flex;
     align-items: center;
     gap: 10px;
     flex-shrink: 0;
   }
-  
+
   .language-selector {
     gap: 3px;
     padding: 0;
   }
-  
+
   .lang-btn {
     height: 2.3em;
     line-height: 2.1em;
@@ -298,7 +301,7 @@
     font-size: 0.85em;
     min-width: 40px;
   }
-  
+
   .book-appointment-btn {
     padding: 10px 16px;
     font-size: 13px;
@@ -344,11 +347,11 @@
   .logo-premium {
     font-size: 9px;
   }
-  
+
   .header-actions {
     gap: 8px;
   }
-  
+
   .lang-btn {
     height: 2.2em;
     line-height: 2em;
@@ -356,7 +359,7 @@
     font-size: 0.8em;
     min-width: 36px;
   }
-  
+
   .book-appointment-btn {
     padding: 9px 14px;
     font-size: 12px;
@@ -471,7 +474,7 @@
   text-transform: uppercase;
   letter-spacing: 6px;
   font-family: 'Inter', sans-serif;
-  text-shadow: 
+  text-shadow:
     0 0 15px rgba(188, 136, 27, 0.6),
     0 2px 4px rgba(0, 0, 0, 0.3);
   animation: premiumPulse 2s ease-in-out infinite;
@@ -484,17 +487,20 @@
   text-transform: uppercase;
   letter-spacing: 6px;
   font-family: 'Inter', sans-serif;
-  text-shadow: 
+  text-shadow:
     0 0 15px rgba(188, 136, 27, 0.6),
     0 2px 4px rgba(0, 0, 0, 0.3);
   animation: premiumPulse 2s ease-in-out infinite;
 }
 
 @keyframes premiumPulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 0.9;
     transform: scale(1);
   }
+
   50% {
     opacity: 1;
     transform: scale(1.02);
@@ -674,43 +680,43 @@
   .hero-title {
     font-size: 48px;
   }
-  
+
   .hero-logo-image {
     width: 250px;
   }
-  
+
   .hero-brand-text-wrapper {
     gap: 15px;
     margin-bottom: 28px;
   }
-  
+
   .hero-brand-premium {
     font-size: 16px;
     letter-spacing: 5px;
   }
-  
+
   .hero-brand-randevu {
     font-size: 16px;
     letter-spacing: 5px;
   }
-  
+
   .hero-description {
     font-size: 18px;
   }
-  
+
   .barber-showcase-card {
     grid-template-columns: 1fr;
     gap: 40px;
   }
-  
+
   .barber-showcase-card.right-align {
     direction: ltr;
   }
-  
+
   .barber-showcase-image {
     height: 400px;
   }
-  
+
   .barber-showcase-name {
     font-size: 36px;
   }
@@ -720,27 +726,27 @@
   .hero-barbers-section {
     padding: 100px 0 80px;
   }
-  
+
   .hero-content {
     margin-bottom: 60px;
   }
-  
+
   .hero-title {
     font-size: 36px;
   }
-  
+
   .hero-description {
     font-size: 16px;
   }
-  
+
   .barbers-showcase {
     gap: 48px;
   }
-  
+
   .barber-showcase-image {
     height: 350px;
   }
-  
+
   .barber-showcase-content {
     padding: 32px;
   }
@@ -751,11 +757,11 @@
     margin-left: auto;
     margin-right: 0;
   }
-  
+
   .barber-showcase-name {
     font-size: 32px;
   }
-  
+
   .barber-showcase-number {
     font-size: 80px;
     top: 20px;
@@ -768,70 +774,70 @@
     padding: 80px 0 60px;
     min-height: auto;
   }
-  
+
   .hero-content {
     margin-bottom: 48px;
   }
-  
+
   .hero-title {
     font-size: 32px;
     letter-spacing: -1px;
   }
-  
+
   .hero-logo-image {
     width: 200px;
   }
-  
+
   .hero-brand-text-wrapper {
     gap: 12px;
     margin-bottom: 24px;
   }
-  
+
   .hero-brand-premium {
     font-size: 14px;
     letter-spacing: 4px;
   }
-  
+
   .hero-brand-randevu {
     font-size: 14px;
     letter-spacing: 4px;
   }
-  
+
   .hero-description {
     font-size: 15px;
   }
-  
+
   .barbers-showcase {
     gap: 40px;
   }
-  
+
   .barber-showcase-card {
     gap: 32px;
   }
-  
+
   .barber-showcase-image {
     height: 280px;
   }
-  
+
   .barber-showcase-number {
     font-size: 60px;
     top: 16px;
     left: 16px;
   }
-  
+
   .barber-showcase-content {
     padding: 24px;
   }
-  
+
   .barber-showcase-name {
     font-size: 24px;
   }
-  
+
   .barber-showcase-role {
     font-size: 14px;
     margin-bottom: 24px;
   }
-  
+
   .barber-showcase-btn {
     padding: 14px 32px;
     font-size: 14px;
@@ -988,7 +994,7 @@
     grid-template-columns: 1fr;
     gap: 40px;
   }
-  
+
   .working-hours-card,
   .campaigns-showcase {
     padding: 40px;
@@ -999,26 +1005,26 @@
   .info-showcase-section {
     padding: 80px 0;
   }
-  
+
   .info-showcase-grid {
     grid-template-columns: 1fr;
     gap: 32px;
   }
-  
+
   .working-hours-card {
     padding: 32px;
   }
-  
+
   .working-hours-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
-  
+
   .working-hours-header h3 {
     font-size: 24px;
   }
-  
+
   .working-hours-item {
     flex-direction: column;
     align-items: flex-start;
@@ -1030,15 +1036,15 @@
   .info-showcase-section {
     padding: 60px 0;
   }
-  
+
   .working-hours-card {
     padding: 24px;
   }
-  
+
   .working-hours-header h3 {
     font-size: 20px;
   }
-  
+
   .working-hours-day,
   .working-hours-time {
     font-size: 14px;
@@ -1051,33 +1057,33 @@
     gap: 32px;
     max-width: 600px;
   }
-  
+
   .barber-image-wrapper {
     height: 380px;
   }
-  
+
   .barber-info {
     padding: 32px;
   }
-  
+
   .working-hours {
     margin-top: 48px;
   }
-  
+
   .working-hours-content {
     padding: 28px;
     gap: 20px;
   }
-  
+
   .working-hours-icon {
     width: 48px;
     height: 48px;
   }
-  
+
   .working-hours-info h3 {
     font-size: 20px;
   }
-  
+
   .services-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 20px;
@@ -1089,62 +1095,62 @@
     padding: 60px 0 40px;
     min-height: auto;
   }
-  
+
   .barber-image-wrapper {
     height: 340px;
   }
-  
+
   .barber-name {
     font-size: 24px;
   }
-  
+
   .barber-info {
     padding: 28px;
   }
-  
+
   .working-hours {
     margin-top: 40px;
   }
-  
+
   .working-hours-content {
     flex-direction: column;
     align-items: center;
     text-align: center;
     padding: 24px;
   }
-  
+
   .working-hours-icon {
     width: 48px;
     height: 48px;
   }
-  
+
   .working-hours-info h3 {
     font-size: 20px;
     margin-bottom: 12px;
   }
-  
+
   .working-hours-details {
     gap: 6px;
   }
-  
+
   .working-hours-details p {
     font-size: 15px;
   }
-  
+
   .services-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 16px;
   }
-  
+
   .service-card {
     padding: 24px 20px;
   }
-  
+
   .service-icon {
     width: 56px;
     height: 56px;
   }
-  
+
   .service-card h3 {
     font-size: 16px;
   }
@@ -1154,67 +1160,67 @@
   .barber-image-wrapper {
     height: 300px;
   }
-  
+
   .barber-badge {
     width: 48px;
     height: 48px;
     top: 16px;
     right: 16px;
   }
-  
+
   .barber-badge svg {
     width: 20px;
     height: 20px;
   }
-  
+
   .barber-name {
     font-size: 22px;
   }
-  
+
   .barber-info {
     padding: 24px;
   }
-  
+
   .btn-primary {
     padding: 14px 32px;
     font-size: 15px;
   }
-  
+
   .working-hours {
     margin-top: 32px;
   }
-  
+
   .working-hours-content {
     padding: 20px;
   }
-  
+
   .working-hours-icon {
     width: 44px;
     height: 44px;
   }
-  
+
   .working-hours-info h3 {
     font-size: 18px;
   }
-  
+
   .working-hours-details p {
     font-size: 14px;
   }
-  
+
   .services-grid {
     grid-template-columns: 1fr;
     gap: 16px;
   }
-  
+
   .service-card {
     padding: 28px 20px;
   }
-  
+
   .service-icon {
     width: 56px;
     height: 56px;
   }
-  
+
   .service-card h3 {
     font-size: 17px;
   }
@@ -1336,17 +1342,17 @@
     grid-template-columns: repeat(6, 1fr);
     grid-template-rows: repeat(6, 180px);
   }
-  
+
   .gallery-masonry-item.gallery-large {
     grid-column: span 3;
     grid-row: span 2;
   }
-  
+
   .gallery-masonry-item.gallery-medium {
     grid-column: span 3;
     grid-row: span 2;
   }
-  
+
   .gallery-masonry-item.gallery-small {
     grid-column: span 3;
     grid-row: span 1;
@@ -1357,25 +1363,25 @@
   .gallery-masonry-section {
     padding: 80px 0;
   }
-  
+
   .gallery-masonry-header {
     margin-bottom: 48px;
   }
-  
+
   .gallery-masonry-title {
     font-size: 36px;
   }
-  
+
   .gallery-masonry-subtitle {
     font-size: 16px;
   }
-  
+
   .gallery-masonry-grid {
     grid-template-columns: repeat(2, 1fr);
     grid-template-rows: repeat(6, 200px);
     gap: 16px;
   }
-  
+
   .gallery-masonry-item.gallery-large,
   .gallery-masonry-item.gallery-medium,
   .gallery-masonry-item.gallery-small {
@@ -1388,25 +1394,25 @@
   .gallery-masonry-section {
     padding: 60px 0;
   }
-  
+
   .gallery-masonry-title {
     font-size: 28px;
   }
-  
+
   .gallery-masonry-subtitle {
     font-size: 14px;
   }
-  
+
   .gallery-masonry-grid {
     grid-template-columns: 1fr;
     grid-template-rows: repeat(6, 250px);
     gap: 12px;
   }
-  
+
   .gallery-masonry-overlay {
     padding: 20px;
   }
-  
+
   .gallery-masonry-content h4 {
     font-size: 18px;
   }
@@ -1558,34 +1564,34 @@
   .testimonials-modern-section {
     padding: 80px 0;
   }
-  
+
   .testimonials-modern-header {
     margin-bottom: 48px;
   }
-  
+
   .testimonials-modern-title {
     font-size: 36px;
   }
-  
+
   .testimonials-modern-subtitle {
     font-size: 16px;
   }
-  
+
   .testimonials-modern-grid {
     gap: 24px;
   }
-  
+
   .testimonial-modern-card {
     padding: 32px;
     clip-path: none !important;
   }
-  
+
   .testimonial-modern-quote {
     font-size: 80px;
     top: 16px;
     right: 24px;
   }
-  
+
   .testimonial-modern-comment {
     font-size: 16px;
   }
@@ -1595,47 +1601,47 @@
   .testimonials-modern-section {
     padding: 60px 0;
   }
-  
+
   .testimonials-modern-title {
     font-size: 28px;
   }
-  
+
   .testimonials-modern-subtitle {
     font-size: 14px;
   }
-  
+
   .testimonials-modern-grid {
     gap: 20px;
   }
-  
+
   .testimonial-modern-card {
     padding: 24px;
   }
-  
+
   .testimonial-modern-quote {
     font-size: 60px;
     top: 12px;
     right: 16px;
   }
-  
+
   .testimonial-modern-rating {
     margin-bottom: 16px;
   }
-  
+
   .testimonial-modern-comment {
     font-size: 15px;
     line-height: 1.6;
     margin-bottom: 20px;
   }
-  
+
   .testimonial-modern-author {
     padding-top: 16px;
   }
-  
+
   .testimonial-modern-author-info strong {
     font-size: 16px;
   }
-  
+
   .testimonial-modern-author-info span {
     font-size: 13px;
   }
@@ -1746,12 +1752,12 @@
 
 .social-sidebar-content {
   margin-top: 10px;
-  background: rgba(0,0,0,0.85);
-  border: 1px solid rgba(188,136,27,0.4);
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(188, 136, 27, 0.4);
   border-radius: 12px;
   padding: 12px;
   width: 220px;
-  box-shadow: 0 10px 24px rgba(0,0,0,0.45);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(6px);
 }
 
@@ -1768,7 +1774,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .social-barber:last-child {
@@ -1893,7 +1899,8 @@
   text-decoration: none;
   transition: all 0.3s ease;
   width: 100%;
-  min-width: 0; /* allow shrink on small screens */
+  min-width: 0;
+  /* allow shrink on small screens */
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.8);
@@ -2075,7 +2082,7 @@
   .contact-section {
     padding: 60px 0;
   }
-  
+
   .contact-map {
     height: 350px;
   }
@@ -2085,7 +2092,7 @@
   .contact-section {
     padding: 48px 0;
   }
-  
+
   .contact-map {
     height: 300px;
   }
@@ -2098,15 +2105,16 @@
     width: 56px;
     height: 56px;
   }
-  
+
   .whatsapp-button svg {
     width: 28px;
     height: 28px;
   }
-  
+
   .social-sidebar {
     top: auto;
-    bottom: 120px; /* lifted to avoid WhatsApp overlap */
+    bottom: 120px;
+    /* lifted to avoid WhatsApp overlap */
     left: auto;
     right: 16px;
     transform: none;
@@ -2116,12 +2124,12 @@
     flex-direction: column;
     align-items: flex-end;
   }
-  
+
   .social-sidebar:not(.open) {
     right: 16px;
     transform: none;
   }
-  
+
   .social-sidebar-content {
     display: none;
     position: absolute;
@@ -2144,11 +2152,11 @@
   .social-sidebar.open .social-sidebar-content {
     display: flex;
   }
-  
+
   .social-sidebar-header h3 {
     display: none;
   }
-  
+
   .social-sidebar-link {
     padding: 8px 10px;
     min-width: 0;
@@ -2160,7 +2168,7 @@
     gap: 6px;
     flex: 0 0 auto;
   }
-  
+
   .social-sidebar-link span {
     display: inline-block;
     font-size: 12px;
@@ -2169,7 +2177,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  
+
   .social-sidebar-toggle {
     display: inline-flex;
     align-items: center;
@@ -2186,16 +2194,16 @@
     box-shadow: 0 8px 18px rgba(188, 136, 27, 0.35);
     cursor: pointer;
   }
-  
+
   .social-toggle-content {
     gap: 6px;
   }
-  
+
   .social-toggle-btn {
     width: 28px;
     height: 28px;
   }
-  
+
   .social-toggle-btn svg {
     width: 14px;
     height: 14px;
@@ -2209,24 +2217,25 @@
     width: 52px;
     height: 52px;
   }
-  
+
   .whatsapp-button svg {
     width: 24px;
     height: 24px;
   }
-  
+
   .social-sidebar {
-    bottom: 105px; /* lifted to avoid WhatsApp overlap */
+    bottom: 105px;
+    /* lifted to avoid WhatsApp overlap */
     right: 12px;
     transform: none;
     width: auto;
   }
-  
+
   .social-sidebar:not(.open) {
     right: 12px;
     transform: none;
   }
-  
+
   .social-sidebar-content {
     padding: 8px 10px;
     gap: 6px;
@@ -2237,11 +2246,11 @@
     min-width: 0;
     border-radius: 14px;
   }
-  
+
   .social-sidebar-header h3 {
     display: none;
   }
-  
+
   .social-sidebar-link {
     padding: 7px 9px;
     min-width: 0;
@@ -2250,12 +2259,12 @@
     border-radius: 12px;
     flex: 0 0 auto;
   }
-  
+
   .social-sidebar-link svg {
     width: 15px;
     height: 15px;
   }
-  
+
   .social-sidebar-link span {
     font-size: 11px;
     max-width: 70px;
@@ -2263,7 +2272,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  
+
   .social-sidebar-toggle {
     display: inline-flex;
     align-items: center;
@@ -2280,21 +2289,21 @@
     box-shadow: 0 8px 18px rgba(188, 136, 27, 0.35);
     cursor: pointer;
   }
-  
+
   .social-toggle-content {
     gap: 5px;
   }
-  
+
   .social-toggle-btn {
     width: 28px;
     height: 28px;
   }
-  
+
   .social-toggle-btn svg {
     width: 14px;
     height: 14px;
   }
-  
+
   .social-sidebar-toggle .rotated {
     width: 12px;
     height: 12px;
@@ -2459,44 +2468,44 @@
   .services-modern-section {
     padding: 80px 0;
   }
-  
+
   .services-modern-header {
     margin-bottom: 48px;
   }
-  
+
   .services-modern-title {
     font-size: 36px;
   }
-  
+
   .services-modern-subtitle {
     font-size: 16px;
   }
-  
+
   .service-modern-card {
     grid-template-columns: 1fr;
     gap: 24px;
     padding: 28px;
     text-align: center;
   }
-  
+
   .service-modern-card.service-right {
     direction: ltr;
   }
-  
+
   .service-modern-card:hover {
     transform: translateY(-8px);
   }
-  
+
   .service-modern-number {
     font-size: 56px;
   }
-  
+
   .service-modern-icon {
     width: 64px;
     height: 64px;
     margin: 0 auto;
   }
-  
+
   .service-modern-content h3 {
     font-size: 20px;
   }
@@ -2506,33 +2515,33 @@
   .services-modern-section {
     padding: 60px 0;
   }
-  
+
   .services-modern-title {
     font-size: 28px;
   }
-  
+
   .services-modern-subtitle {
     font-size: 15px;
   }
-  
+
   .service-modern-card {
     padding: 24px;
     gap: 20px;
   }
-  
+
   .service-modern-number {
     font-size: 48px;
   }
-  
+
   .service-modern-icon {
     width: 56px;
     height: 56px;
   }
-  
+
   .service-modern-content h3 {
     font-size: 18px;
   }
-  
+
   .service-modern-meta {
     font-size: 14px;
   }
@@ -2560,7 +2569,7 @@
   .footer {
     padding: 32px 0;
   }
-  
+
   .footer p {
     font-size: 12px;
   }
@@ -2570,8 +2579,120 @@
   .footer {
     padding: 24px 0;
   }
-  
+
   .footer p {
     font-size: 11px;
+  }
+}
+
+/* ============================================
+   CONTACT SECTION - NEW DESIGN
+   ============================================ */
+
+.contact-section {
+  padding: 100px 0;
+  background: #000000;
+  border-top: 1px solid rgba(188, 136, 27, 0.1);
+  position: relative;
+}
+
+.contact-content-wrapper {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.contact-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(188, 136, 27, 0.2);
+  border-radius: 24px;
+  padding: 40px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: all 0.4s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.contact-card:hover {
+  border-color: rgba(188, 136, 27, 0.5);
+  transform: translateY(-8px);
+  box-shadow: 0 12px 40px rgba(188, 136, 27, 0.15);
+}
+
+.contact-icon-wrapper {
+  width: 64px;
+  height: 64px;
+  background: rgba(188, 136, 27, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  color: #bc881b;
+  transition: all 0.4s ease;
+}
+
+.contact-card:hover .contact-icon-wrapper {
+  background: #bc881b;
+  color: #000000;
+  transform: scale(1.1);
+}
+
+.contact-card h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 16px;
+  letter-spacing: -0.5px;
+}
+
+.contact-link {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  transition: all 0.3s ease;
+  line-height: 1.5;
+  max-width: 250px;
+}
+
+.contact-link:hover {
+  color: #bc881b;
+}
+
+.contact-link.address-link {
+  font-size: 15px;
+}
+
+@media (max-width: 968px) {
+  .contact-content-wrapper {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .contact-card:last-child {
+    grid-column: span 2;
+    max-width: 50%;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .contact-content-wrapper {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .contact-card:last-child {
+    grid-column: auto;
+    max-width: 100%;
+  }
+
+  .contact-section {
+    padding: 80px 0;
   }
 }

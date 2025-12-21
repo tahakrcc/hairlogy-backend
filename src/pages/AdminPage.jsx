@@ -258,7 +258,7 @@ function AdminPage() {
       // 401 Unauthorized - Kullanıcı adı veya şifre hatalı
       else if (errorStatus === 401) {
         setToast({
-          message: 'Kullanıcı adı veya şifre hatalı. Lütfen tekrar deneyin.',
+          message: errorMessage || 'Kullanıcı adı veya şifre hatalı.',
           type: 'error'
         })
         // Şifreyi temizle

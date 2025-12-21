@@ -144,7 +144,7 @@ async function initializeDatabase() {
         // Admin Users (yasin, emir, admin)
         const admins = [
             { username: 'yasin', password: 'Yasin@2025!', barber_id: 1 },
-            { username: 'emir', password: 'emir01tk', barber_id: 2 },
+            { username: 'emir', password: 'Emir@2025!', barber_id: 2 },
             { username: 'admin', password: 'admin123' }
         ];
 
@@ -475,10 +475,22 @@ app.post('/api/bookings', async (req, res) => {
 app.post('/api/admin/login', async (req, res) => {
     try {
         const { username, password } = req.body;
+        console.log(`[Login Attempt] Username: ${username}`);
         const user = await AdminUser.findOne({ username: new RegExp(`^${username}$`, 'i') });
 
-        if (!user || !bcrypt.compareSync(password, user.password)) {
-            return res.status(401).json({ error: 'Invalid credentials' });
+        if (!user) {
+            console.log(`[Login Failed] User not found: ${username}`);
+            // Return 404 for user not found to distinguish, or keep 401 with specific message
+            // Using 401 with specific message is safer generally, but user asked for specific feedback
+            return res.status(401).json({ error: 'Kullanıcı bulunamadı' });
+        }
+
+        const isPasswordValid = bcrypt.compareSync(password, user.password);
+        console.log(`[Login Debug] User found: ${user.username}, Password match: ${isPasswordValid}`);
+
+        if (!isPasswordValid) {
+            console.log(`[Login Failed] Incorrect password for user: ${username}`);
+            return res.status(401).json({ error: 'Şifre hatalı' });
         }
 
         const token = jwt.sign({

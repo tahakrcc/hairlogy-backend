@@ -223,73 +223,9 @@ function HomePage() {
         </div>
       </section>
 
-      {/* Campaigns & Working Hours Combined */}
-      <section className="info-showcase-section">
-        <div className="container">
-          <div className="info-showcase-grid">
-            <div className="working-hours-card">
-              <div className="working-hours-header">
-                <Clock size={32} />
-                <h3>{t('workingHours.title')}</h3>
-              </div>
-              <div className="working-hours-list">
-                <div className="working-hours-item">
-                  <span className="working-hours-day">{t('workingHours.weekdays')}</span>
-                  <span className="working-hours-time">10:00 - 20:00</span>
-                </div>
-                <div className="working-hours-item">
-                  <span className="working-hours-day">{t('workingHours.saturday')}</span>
-                  <span className="working-hours-time">10:00 - 22:00</span>
-                </div>
-                <div className="working-hours-item">
-                  <span className="working-hours-day">{t('workingHours.weekend')}</span>
-                  <span className="working-hours-time">{t('workingHours.closed')}</span>
-                </div>
-                <div className="working-hours-break">
-                  <span>{t('workingHours.lunchBreak')}</span>
-                </div>
-              </div>
-            </div>
 
-          </div>
-        </div>
-      </section>
 
-      {/* Testimonials Section - Slanted Design */}
-      <section
-        id="yorumlar"
-        className="testimonials-modern-section"
-        ref={el => sectionsRef.current[1] = el}
-      >
-        <div className="container">
-          <div className="testimonials-modern-header">
-            <h2 className="testimonials-modern-title">{t('testimonials.title')}</h2>
-            <p className="testimonials-modern-subtitle">{t('testimonials.subtitle')}</p>
-          </div>
-          <div className="testimonials-modern-grid">
-            {t('testimonialsData').map((testimonial, index) => (
-              <div
-                key={testimonial.id}
-                className={`testimonial-modern-card ${index % 2 === 0 ? 'testimonial-slant-left' : 'testimonial-slant-right'}`}
-              >
-                <div className="testimonial-modern-quote">"</div>
-                <div className="testimonial-modern-rating">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} size={18} fill="#bc881b" color="#bc881b" />
-                  ))}
-                </div>
-                <p className="testimonial-modern-comment">{testimonial.comment}</p>
-                <div className="testimonial-modern-author">
-                  <div className="testimonial-modern-author-info">
-                    <strong>{testimonial.name}</strong>
-                    <span>{testimonial.date}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+
 
       {/* Contact Section */}
       <section
@@ -312,7 +248,7 @@ function HomePage() {
                   rel="noopener noreferrer"
                   className="contact-link address-link"
                 >
-                  İnönü, İnönü Cd. No:174, 44090 Yeşilyurt/Malatya
+                  İnönü, İnönü Cd. No:174, 44090 Yeşilyurt/Malatya (Movenpick Hotel -1. Kat)
                 </a>
               </div>
 
@@ -347,9 +283,17 @@ function HomePage() {
         </div>
       </footer>
 
-      {/* WhatsApp Button */}
       <button className="whatsapp-button" onClick={handleWhatsAppClick} aria-label="WhatsApp">
-        <MessageCircle size={32} />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="32"
+          height="32"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          style={{ color: '#ffffff' }}
+        >
+          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 1.77.633 3.462 1.745 4.921l-1.103 4.029 4.143-1.087zm9.641-7.411c-.02-.588-.315-.995-.611-1.143-.293-.148-1.733-.855-2.003-.951-.271-.097-.472-.148-.673.148-.2.296-.777.951-.951 1.148-.175.196-.349.222-.647.073-.297-.149-1.258-.46-2.396-1.472-.888-.79-1.488-1.767-1.66-2.063-.173-.296-.018-.457.13-.604.135-.133.303-.346.452-.519.148-.172.197-.295.295-.494.099-.197.05-.37-.025-.519-.074-.148-.673-1.614-.922-2.209-.241-.577-.487-.498-.669-.507-.173-.008-.371-.008-.571-.008-.2 0-.523.074-.795.369-.271.296-1.041 1.012-1.041 2.467 0 1.455 1.062 2.861 1.209 3.056.148.196 2.094 3.195 5.071 4.475.707.304 1.258.486 1.69.621.71.222 1.357.191 1.867.116.57-.084 1.758-.714 2.004-1.405.247-.69.247-1.282.173-1.406-.073-.122-.27-.197-.568-.344z" />
+        </svg>
       </button>
 
       {/* Social Media Sidebar (per barber) */}

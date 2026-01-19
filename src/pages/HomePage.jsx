@@ -243,12 +243,12 @@ function HomePage() {
                 </div>
                 <h3>{t('contact.address')}</h3>
                 <a
-                  href="https://www.google.com/maps/search/?api=1&query=%C4%B0n%C3%B6n%C3%BC+Caddesi+No:174+Ye%C5%9Filyurt+Malatya"
+                  href="https://maps.google.com/?q=38.351147,38.285103"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="contact-link address-link"
                 >
-                  İnönü, İnönü Cd. No:174, 44090 Yeşilyurt/Malatya (Movenpick Hotel -1. Kat)
+                  Haritada Konumu Gör
                 </a>
               </div>
 

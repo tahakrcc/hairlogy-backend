@@ -330,13 +330,13 @@ app.get('/api/available-times', async (req, res) => {
     console.log(`[Available Times] Date: ${date}, BarberId: ${barberId} (num: ${barberIdNum}, str: ${barberIdStr})`);
     console.log(`[Available Times] Total bookings in DB: ${totalBookings}, Matching barber: ${matchingBookings}, Booked times: ${bookedTimes.length}`, bookedTimes);
 
-    // All possible time slots (10:00 - 20:00, hourly)
-    // Note: 16:00 is break time (yemek molası), 17:00 is active
+    // All possible time slots (09:00 - 20:00, hourly)
+    // Note: No lunch break
     // All possible time slots
-    // Weekdays & Saturdays start at 10:00
+    // Weekdays & Saturdays start at 09:00
     // Weekdays end at 20:00, Saturdays end at 22:00
     const allTimeSlots = [
-      '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
+      '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
     ];
 
     // If it's Saturday (getDay() === 6), add 21:00 and 22:00
@@ -345,17 +345,17 @@ app.get('/api/available-times', async (req, res) => {
       allTimeSlots.push('21:00', '22:00');
     }
 
-    // Break time slot (yemek molası - not available for booking, only 16:00)
-    const breakTimeSlots = ['16:00'];
+    // Break time slot removed
+    // const breakTimeSlots = ['16:00'];
 
     // Normalize booked times for comparison (trim and ensure string)
     const normalizedBookedTimes = bookedTimes.map(t => String(t).trim());
 
-    // Filter available times (not in bookedTimes and not break time)
+    // Filter available times (not in bookedTimes)
     const availableTimes = allTimeSlots.filter(time => {
       const normalizedTime = String(time).trim();
-      // Exclude break time slots and booked times
-      return !breakTimeSlots.includes(normalizedTime) && !normalizedBookedTimes.includes(normalizedTime);
+      // Exclude booked times
+      return !normalizedBookedTimes.includes(normalizedTime);
     });
 
     console.log(`[Available Times] Returning: ${availableTimes.length} available, ${bookedTimes.length} booked`);
@@ -448,7 +448,7 @@ app.get('/api/available-times-batch', async (req, res) => {
 
       // Time slots logic (same as single endpoint)
       const allTimeSlots = [
-        '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
+        '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
       ];
 
       // Use getUTCDay() to be timezone independent
@@ -456,12 +456,12 @@ app.get('/api/available-times-batch', async (req, res) => {
         allTimeSlots.push('21:00', '22:00');
       }
 
-      const breakTimeSlots = ['16:00'];
+      // const breakTimeSlots = ['16:00'];
       const normalizedBookedTimes = bookedTimes.map(t => t.trim());
 
       const availableTimes = allTimeSlots.filter(time => {
         const normalizedTime = time.trim();
-        return !breakTimeSlots.includes(normalizedTime) && !normalizedBookedTimes.includes(normalizedTime);
+        return !normalizedBookedTimes.includes(normalizedTime);
       });
 
       results[date] = { availableTimes, bookedTimes, isClosed: false };
@@ -494,12 +494,12 @@ app.post('/api/bookings', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Check if time is during break time (only 16:00 - yemek molası, 17:00 is active)
+    // Check if time is during break time - REMOVED
     const normalizedAppointmentTime = String(appointmentTime).trim();
-    const breakTimeSlots = ['16:00'];
-    if (breakTimeSlots.includes(normalizedAppointmentTime)) {
-      return res.status(400).json({ error: 'Bu saat yemek molası, randevu alınamaz.' });
-    }
+    // const breakTimeSlots = ['16:00'];
+    // if (breakTimeSlots.includes(normalizedAppointmentTime)) {
+    //   return res.status(400).json({ error: 'Bu saat yemek molası, randevu alınamaz.' });
+    // }
 
     // Check device token and booking limit (2 bookings per device, resets every 3 hours)
     if (deviceToken) {

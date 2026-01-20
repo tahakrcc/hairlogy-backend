@@ -298,15 +298,9 @@ function BookingPage() {
       const timesArray = Array.isArray(times) ? times.map(t => String(t).trim()) : []
       const bookedArray = Array.isArray(booked) ? booked.map(t => String(t).trim()).filter(t => t) : []
 
-      // Filter out past times for today and break time (sadece 16:00)
-      const breakTimeSlots = ['16:00']
+      // Filter out past times for today (yemek molası removed)
       const now = new Date()
       const filteredTimes = timesArray.filter(time => {
-        const normalizedTime = String(time).trim()
-        // Exclude break time slots (16:00) - unavailable
-        if (breakTimeSlots.includes(normalizedTime)) {
-          return false
-        }
         // Filter out past times for today
         if (isSameDay(selectedDate, now)) {
           const [hours, minutes] = time.split(':').map(Number)

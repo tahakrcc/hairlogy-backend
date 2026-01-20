@@ -114,7 +114,7 @@ function initializeDatabase() {
 // Middleware to verify JWT token
 const verifyToken = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
-  
+
   if (!token) {
     return res.status(401).json({ error: 'No token provided' });
   }
@@ -153,7 +153,7 @@ app.get('/api/services', (req, res) => {
 // Get available time slots for a date and barber
 app.get('/api/available-times', (req, res) => {
   const { barberId, date } = req.query;
-  
+
   if (!barberId || !date) {
     return res.status(400).json({ error: 'barberId and date are required' });
   }
@@ -168,12 +168,12 @@ app.get('/api/available-times', (req, res) => {
       }
 
       const bookedTimes = rows.map(row => row.appointment_time);
-      
+
       // All possible time slots
       const allTimeSlots = [
         '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
         '12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
-        '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30'
+        '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30'
       ];
 
       const availableTimes = allTimeSlots.filter(time => !bookedTimes.includes(time));
@@ -218,7 +218,7 @@ app.post('/api/bookings', (req, res) => {
         `INSERT INTO bookings (barber_id, barber_name, service_name, service_price, customer_name, customer_phone, customer_email, appointment_date, appointment_time)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [barberId, barberName, serviceName, servicePrice, customerName, customerPhone, customerEmail || null, appointmentDate, appointmentTime],
-        function(err) {
+        function (err) {
           if (err) {
             return res.status(500).json({ error: err.message });
           }
@@ -315,7 +315,7 @@ app.patch('/api/admin/bookings/:id', verifyToken, (req, res) => {
   db.run(
     'UPDATE bookings SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
     [status, id],
-    function(err) {
+    function (err) {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
@@ -330,7 +330,7 @@ app.patch('/api/admin/bookings/:id', verifyToken, (req, res) => {
 // Delete booking
 app.delete('/api/admin/bookings/:id', verifyToken, (req, res) => {
   const { id } = req.params;
-  db.run('DELETE FROM bookings WHERE id = ?', [id], function(err) {
+  db.run('DELETE FROM bookings WHERE id = ?', [id], function (err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }

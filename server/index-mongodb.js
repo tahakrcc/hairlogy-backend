@@ -297,14 +297,14 @@ app.get('/api/available-times', async (req, res) => {
 
         // Time slots logic
         const allTimeSlots = [
-            '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
+            '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
         ];
         // If it's Saturday (dayOfWeek === 6), add 21:00 and 22:00
         if (dayOfWeek === 6) allTimeSlots.push('21:00', '22:00');
 
-        const breakTimeSlots = ['16:00'];
+        // const breakTimeSlots = ['16:00'];
         const availableTimes = allTimeSlots.filter(time =>
-            !breakTimeSlots.includes(time) && !bookedTimes.includes(time)
+            !bookedTimes.includes(time)
         );
 
         res.json({ availableTimes, bookedTimes });
@@ -354,7 +354,7 @@ app.get('/api/available-times-batch', async (req, res) => {
                 .filter(b => b.appointment_date === date)
                 .map(b => b.appointment_time.trim());
 
-            const allTimeSlots = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
+            const allTimeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
 
             // Safer day detection
             const [y, m, d] = date.split('-').map(Number);
@@ -362,7 +362,7 @@ app.get('/api/available-times-batch', async (req, res) => {
 
             if (dayOfWeek === 6) allTimeSlots.push('21:00', '22:00');
 
-            const availableTimes = allTimeSlots.filter(time => time !== '16:00' && !bookedTimes.includes(time));
+            const availableTimes = allTimeSlots.filter(time => !bookedTimes.includes(time));
             results[date] = { availableTimes, bookedTimes, isClosed: false };
         }
 
@@ -381,8 +381,8 @@ app.post('/api/bookings', async (req, res) => {
             return res.status(400).json({ error: 'Missing fields' });
         }
 
-        // Break time check
-        if (appointmentTime.trim() === '16:00') return res.status(400).json({ error: 'Yemek molası' });
+        // Break time check - REMOVED
+        // if (appointmentTime.trim() === '16:00') return res.status(400).json({ error: 'Yemek molası' });
 
         // Device token limit check
         if (deviceToken) {

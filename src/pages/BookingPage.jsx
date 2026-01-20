@@ -866,9 +866,9 @@ function BookingPage() {
                               ? bookedTimes.map(t => String(t).trim())
                               : []
 
-                            // Break time only for 16:00 (yemek molası). 17:00 artık kapalı değil.
-                            const isBreakTime = time === '16:00'
-                            const isBreakTimeSlot = time === '16:00'
+                            // Break time checks removed
+                            const isBreakTime = false
+                            const isBreakTimeSlot = false
                             const isSeventeen = time === '17:00'
 
                             // A time is available if it's in availableTimes array and not break time slot

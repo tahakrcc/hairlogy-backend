@@ -178,6 +178,10 @@ h1 {
     z-index: 100;
 }
 
+.whatsapp-float-button svg {
+    flex-shrink: 0;
+}
+
 .whatsapp-float-button:hover {
     transform: translateY(-5px) scale(1.05);
     box-shadow: 0 8px 25px rgba(37, 211, 102, 0.4);

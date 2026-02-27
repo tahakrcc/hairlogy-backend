@@ -12,7 +12,7 @@ const getApiBaseUrl = () => {
   // 2. Production modunda ve environment variable yoksa
   if (import.meta.env.PROD) {
     // Frontend Netlify'da, Backend Render'da olduğu için Full URL veriyoruz
-    return 'https://hairlogy-backend.onrender.com/api';
+    return 'https://hairlogy-backend-8jfe.onrender.com/api';
   }
 
   // 3. Development için localhost proxy
@@ -101,12 +101,25 @@ export const adminAPI = {
   getClosedDates: () => api.get('/admin/closed-dates'),
   createClosedDate: (data) => api.post('/admin/closed-dates', data),
   deleteClosedDate: (id) => api.delete(`/admin/closed-dates/${id}`),
+  toggleDate: (date, barberId, reason) => api.post('/admin/toggle-date', { date, barberId, reason }),
+  // Services CRUD
+  getServices: () => api.get('/admin/services'),
+  createService: (data) => api.post('/admin/services', data),
+  updateService: (id, data) => api.put(`/admin/services/${id}`, data),
+  deleteService: (id) => api.delete(`/admin/services/${id}`),
+  // Working Hours
+  getWorkingHours: () => api.get('/admin/settings/working-hours'),
+  updateWorkingHours: (data) => api.put('/admin/settings/working-hours', data),
   // Maintenance Settings
   toggleMaintenanceMode: (value) => api.post('/admin/settings/maintenance', { value }),
+  // General Settings
+  getGeneralSettings: () => api.get('/admin/settings/general'),
+  updateGeneralSettings: (data) => api.put('/admin/settings/general', data),
 };
 
 export const settingsAPI = {
   getMaintenanceMode: () => api.get('/settings/maintenance'),
+  getBookingHorizon: () => api.get('/settings/booking-horizon'),
   trackVisit: () => api.post('/visit')
 };
 

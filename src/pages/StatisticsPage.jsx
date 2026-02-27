@@ -22,7 +22,7 @@ function StatisticsPage() {
             const response = await adminAPI.getStats(true) // showAll=true
             setStats(response.data)
         } catch (error) {
-            console.error('Error loading stats:', error)
+            // Stats yüklenemedi
         } finally {
             setLoading(false)
         }

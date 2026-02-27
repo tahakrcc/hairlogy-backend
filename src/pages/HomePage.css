@@ -1717,6 +1717,7 @@
   width: 32px;
   height: 32px;
   color: #ffffff;
+  flex-shrink: 0;
 }
 
 /* ============================================

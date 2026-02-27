@@ -1,32 +1,36 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Scissors } from 'lucide-react'
 import { useLanguage } from '../contexts/LanguageContext'
+import { barbersAPI } from '../services/api'
 import './BarberSelectPage.css'
-
-const barbers = [
-  {
-    id: 1,
-    name: 'Hıdır Yasin Gökçeoğlu',
-    image: '/yasin-new.jpg',
-    experience: '7 Yıl Deneyim',
-    instagram: 'https://www.instagram.com/hairology_yasin?igsh=eWZlN3c4emF2bTRu&utm_source=qr',
-    tiktok: 'https://www.tiktok.com/@hidir_yasin?_r=1&_t=ZS-9281Gzsz8VQ',
-    youtube: 'https://youtube.com/@hdrgokceoglu5095?si=lL8J2m-HA_r6tK1H'
-  },
-  {
-    id: 2,
-    name: 'Emir Gökçeoğlu',
-    image: '/WhatsApp%20Image%202025-12-09%20at%2012.00.59.jpeg',
-    experience: '2 Yıl Deneyim',
-    instagram: 'https://www.instagram.com/emirgokceoglu1?igsh=YjBjYm1tYWVheTR4',
-    tiktok: 'https://www.tiktok.com/@emirgokceoglu?_r=1&_t=ZS-9284iyXxzcq'
-  }
-]
 
 function BarberSelectPage() {
   const navigate = useNavigate()
   const { t } = useLanguage()
+  const [barbers, setBarbers] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadBarbers = async () => {
+      try {
+        const response = await barbersAPI.getAll()
+        if (response.data && response.data.length > 0) {
+          setBarbers(response.data.map(b => ({
+            id: b.barber_id || b.id,
+            name: b.name,
+            image: b.image_url || '',
+            experience: b.experience || ''
+          })))
+        }
+      } catch (err) {
+        // API error
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadBarbers()
+  }, [])
 
   const handleBarberSelect = (barberId) => {
     navigate(`/randevu/${barberId}`)
@@ -48,29 +52,35 @@ function BarberSelectPage() {
         <div className="container">
           <div className="barber-select-content">
             <p className="select-description">Randevu almak için bir usta seçin</p>
-            
+
             <div className="barbers-grid">
-              {barbers.map((barber) => (
-                <div
-                  key={barber.id}
-                  className="barber-card greek-key-corner"
-                  onClick={() => handleBarberSelect(barber.id)}
-                >
-                  <div className="barber-image-wrapper">
-                  <img src={barber.image} alt={barber.name} loading="lazy" />
-                    <div className="barber-overlay">
-                      <Scissors size={32} />
+              {loading ? (
+                <div style={{ textAlign: 'center', color: '#999', padding: '40px', gridColumn: '1 / -1' }}>Yükleniyor...</div>
+              ) : barbers.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#999', padding: '40px', gridColumn: '1 / -1' }}>Berber bilgisi yüklenemedi</div>
+              ) : (
+                barbers.map((barber) => (
+                  <div
+                    key={barber.id}
+                    className="barber-card greek-key-corner"
+                    onClick={() => handleBarberSelect(barber.id)}
+                  >
+                    <div className="barber-image-wrapper">
+                      <img src={barber.image} alt={barber.name} loading="lazy" />
+                      <div className="barber-overlay">
+                        <Scissors size={32} />
+                      </div>
                     </div>
+                    <div className="barber-info">
+                      <h3>{barber.name}</h3>
+                      <p className="barber-experience">{barber.experience}</p>
+                    </div>
+                    <button className="golden-button">
+                      <span className="golden-text">Randevu Al</span>
+                    </button>
                   </div>
-                  <div className="barber-info">
-                    <h3>{barber.name}</h3>
-                    <p className="barber-experience">{barber.experience}</p>
-                  </div>
-                  <button className="golden-button">
-                    <span className="golden-text">Randevu Al</span>
-                  </button>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -80,4 +90,3 @@ function BarberSelectPage() {
 }
 
 export default BarberSelectPage
-

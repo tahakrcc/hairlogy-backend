@@ -76,6 +76,7 @@ function App() {
               <>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/berber-sec" element={<BarberSelectPage />} />
+                <Route path="/randevu" element={<BookingPage />} />
                 <Route path="/randevu/:barberId" element={<BookingPage />} />
               </>
             )}

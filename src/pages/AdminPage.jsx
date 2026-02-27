@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LogOut, Calendar, Users, DollarSign, CheckCircle, XCircle, Clock, Trash2, Filter, Send, Phone, MessageSquare, ChevronRight, ChevronLeft, Plus, Scissors, X, Settings, TrendingUp } from 'lucide-react'
 import { adminAPI, barbersAPI, servicesAPI, settingsAPI, default as api } from '../services/api'
 import Toast from '../components/Toast'
 import './AdminPage.css'
-import { addDays, format, startOfDay, isWithinInterval, parseISO, isSameDay } from 'date-fns'
+import { addDays, format, startOfDay, isWithinInterval, parseISO, isSameDay, isBefore } from 'date-fns'
 import { tr } from 'date-fns/locale'
 
 const statusConfig = {
@@ -33,7 +33,8 @@ function AdminPage() {
   const [dayBookings, setDayBookings] = useState([])
   const [closedDates, setClosedDates] = useState([])
   const [showClosedDateForm, setShowClosedDateForm] = useState(false)
-  const [closedDateForm, setClosedDateForm] = useState({ start_date: '', end_date: '', reason: '', barberId: '' })
+  const [closedDateType, setClosedDateType] = useState('full') // 'full' or 'partial'
+  const [closedDateForm, setClosedDateForm] = useState({ start_date: '', end_date: '', start_time: '', end_time: '', reason: '', barberId: '' })
   const [showFilters, setShowFilters] = useState(false)
   const [showCreateBookingModal, setShowCreateBookingModal] = useState(false)
   const [createBookingForm, setCreateBookingForm] = useState({
@@ -49,12 +50,47 @@ function AdminPage() {
   const [availableTimesForDate, setAvailableTimesForDate] = useState([])
   const [loadingAvailableTimes, setLoadingAvailableTimes] = useState(false)
   const [creatingBooking, setCreatingBooking] = useState(false)
+
+  // Keep dayBookings in sync with global bookings (so deletes/cancels reflect immediately)
+  useEffect(() => {
+    if (selectedDay) {
+      setDayBookings(bookings.filter(b => b.appointment_date === selectedDay))
+    }
+  }, [bookings, selectedDay])
+
   const [reportDate, setReportDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [sendingReport, setSendingReport] = useState(false)
   const [barbers, setBarbers] = useState({})
   const [services, setServices] = useState([])
   const [maintenanceMode, setMaintenanceMode] = useState(false)
   const [maintenanceLoading, setMaintenanceLoading] = useState(false)
+
+  // Custom Confirmation Dialog State
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, type: null, id: null, message: '' })
+
+  // New states for settings
+  const [activeTab, setActiveTab] = useState('bookings') // 'bookings', 'services', 'hours', 'settings'
+  const [allServices, setAllServices] = useState([])
+  const [showServiceModal, setShowServiceModal] = useState(false)
+  const [editingService, setEditingService] = useState(null)
+  const [serviceForm, setServiceForm] = useState({ name: '', duration: 30, price: 0, active: true })
+  const [workingHours, setWorkingHours] = useState({
+    weekday: { start: '09:00', end: '20:00' },
+    saturday: { start: '09:00', end: '22:00' },
+    sunday: { closed: true },
+    slotDuration: 60
+  })
+  const [savingWorkingHours, setSavingWorkingHours] = useState(false)
+  const [calendarMonth, setCalendarMonth] = useState(new Date())
+  const [generalSettings, setGeneralSettings] = useState({
+    booking_horizon: 14,
+    auto_confirm: true
+  })
+  const [savingGeneralSettings, setSavingGeneralSettings] = useState(false)
+
+  const [originalWorkingHours, setOriginalWorkingHours] = useState(null)
+  const [originalGeneralSettings, setOriginalGeneralSettings] = useState(null)
+  const [unsavedModal, setUnsavedModal] = useState({ isOpen: false, targetTab: null })
 
   const horizonStart = startOfDay(new Date())
   const horizonEnd = startOfDay(addDays(horizonStart, 13)) // 14 günlük görünüm
@@ -74,6 +110,9 @@ function AdminPage() {
       loadBarbers()
       loadServices()
       loadMaintenanceStatus()
+      loadAllServices()
+      loadWorkingHours()
+      loadGeneralSettings()
     })
 
     const interval = setInterval(() => {
@@ -412,6 +451,238 @@ function AdminPage() {
     }
   }
 
+  // ============ NEW: Services Management ============
+  const loadAllServices = async () => {
+    try {
+      const response = await adminAPI.getServices()
+      setAllServices(response.data)
+    } catch (error) {
+      console.error('Load all services error:', error)
+    }
+  }
+
+  const handleCreateService = async (e) => {
+    e.preventDefault()
+    try {
+      await adminAPI.createService(serviceForm)
+      setToast({ message: 'Hizmet eklendi', type: 'success' })
+      setShowServiceModal(false)
+      setServiceForm({ name: '', duration: 30, price: 0, active: true })
+      loadAllServices()
+      loadServices() // Refresh public services too
+    } catch (error) {
+      setToast({ message: 'Hizmet eklenirken hata oluştu', type: 'error' })
+    }
+  }
+
+  const handleUpdateService = async (e) => {
+    e.preventDefault()
+    try {
+      await adminAPI.updateService(editingService.id, serviceForm)
+      setToast({ message: 'Hizmet güncellendi', type: 'success' })
+      setShowServiceModal(false)
+      setEditingService(null)
+      setServiceForm({ name: '', duration: 30, price: 0, active: true })
+      loadAllServices()
+      loadServices()
+    } catch (error) {
+      setToast({ message: 'Hizmet güncellenirken hata oluştu', type: 'error' })
+    }
+  }
+
+  const handleDeleteService = async (id) => {
+    if (!window.confirm('Bu hizmeti silmek istediğinize emin misiniz?')) return
+    try {
+      await adminAPI.deleteService(id)
+      setToast({ message: 'Hizmet silindi', type: 'success' })
+      loadAllServices()
+      loadServices()
+    } catch (error) {
+      setToast({ message: 'Hizmet silinirken hata oluştu', type: 'error' })
+    }
+  }
+
+  const openEditService = (service) => {
+    setEditingService(service)
+    setServiceForm({
+      name: service.name,
+      duration: service.duration || 30,
+      price: service.price || 0,
+      active: service.active !== false
+    })
+    setShowServiceModal(true)
+  }
+
+  // ============ NEW: Working Hours Management ============
+  const loadWorkingHours = async () => {
+    try {
+      const response = await adminAPI.getWorkingHours()
+      setWorkingHours(response.data)
+      setOriginalWorkingHours(JSON.parse(JSON.stringify(response.data)))
+    } catch (error) {
+      console.error('Load working hours error:', error)
+    }
+  }
+
+  const handleSaveWorkingHours = async () => {
+    setSavingWorkingHours(true)
+    try {
+      await adminAPI.updateWorkingHours(workingHours)
+      setOriginalWorkingHours(JSON.parse(JSON.stringify(workingHours)))
+      setToast({ message: 'Çalışma saatleri güncellendi', type: 'success' })
+      if (unsavedModal.isOpen && unsavedModal.targetTab) {
+        setActiveTab(unsavedModal.targetTab)
+        setUnsavedModal({ isOpen: false, targetTab: null })
+      }
+    } catch (error) {
+      setToast({ message: 'Çalışma saatleri güncellenirken hata oluştu', type: 'error' })
+    } finally {
+      setSavingWorkingHours(false)
+    }
+  }
+
+  const handleAddBreak = (dayStr) => {
+    setWorkingHours(prev => {
+      const dayData = prev[dayStr] || {};
+      const breaks = dayData.breaks || [];
+      return {
+        ...prev,
+        [dayStr]: {
+          ...dayData,
+          breaks: [...breaks, { start: '12:00', end: '13:00' }]
+        }
+      };
+    });
+  };
+
+  const handleUpdateBreak = (dayStr, index, field, value) => {
+    setWorkingHours(prev => {
+      const dayData = prev[dayStr] || {};
+      const breaks = [...(dayData.breaks || [])];
+      if (breaks[index]) {
+        breaks[index] = { ...breaks[index], [field]: value };
+      }
+      return {
+        ...prev,
+        [dayStr]: {
+          ...dayData,
+          breaks
+        }
+      };
+    });
+  };
+
+  const handleRemoveBreak = (dayStr, index) => {
+    setWorkingHours(prev => {
+      const dayData = prev[dayStr] || {};
+      const breaks = (dayData.breaks || []).filter((_, i) => i !== index);
+      return {
+        ...prev,
+        [dayStr]: {
+          ...dayData,
+          breaks
+        }
+      };
+    });
+  };
+
+  const renderBreaks = (dayStr) => {
+    const breaks = workingHours[dayStr]?.breaks || [];
+    return (
+      <div className="breaks-container">
+        {breaks.map((b, i) => (
+          <div key={i} className="break-item">
+            <input type="time" title="Başlangıç" value={b.start || ''} onChange={(e) => handleUpdateBreak(dayStr, i, 'start', e.target.value)} />
+            <span>-</span>
+            <input type="time" title="Bitiş" value={b.end || ''} onChange={(e) => handleUpdateBreak(dayStr, i, 'end', e.target.value)} />
+            <button className="icon-btn danger small" title="Molayı Sil" onClick={() => handleRemoveBreak(dayStr, i)}>
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+        <button className="btn outline small add-break-btn" onClick={() => handleAddBreak(dayStr)}>
+          + Mola Ekle
+        </button>
+      </div>
+    );
+  };
+
+  // ============ General Settings ============
+  const loadGeneralSettings = async () => {
+    try {
+      const response = await adminAPI.getGeneralSettings()
+      setGeneralSettings(response.data)
+      setOriginalGeneralSettings(JSON.parse(JSON.stringify(response.data)))
+    } catch (error) {
+      console.error('Load general settings error:', error)
+    }
+  }
+
+  const handleSaveGeneralSettings = async () => {
+    setSavingGeneralSettings(true)
+    try {
+      await adminAPI.updateGeneralSettings(generalSettings)
+      setOriginalGeneralSettings(JSON.parse(JSON.stringify(generalSettings)))
+      setToast({ message: 'Ayarlar kaydedildi', type: 'success' })
+      if (unsavedModal.isOpen && unsavedModal.targetTab) {
+        setActiveTab(unsavedModal.targetTab)
+        setUnsavedModal({ isOpen: false, targetTab: null })
+      }
+    } catch (error) {
+      setToast({ message: 'Ayarlar kaydedilirken hata oluştu', type: 'error' })
+    } finally {
+      setSavingGeneralSettings(false)
+    }
+  }
+
+  // ============ NEW: Calendar Toggle ============
+  const handleToggleDate = async (date, barberId = null) => {
+    try {
+      const response = await adminAPI.toggleDate(date, barberId)
+      setToast({ message: response.data.isClosed ? 'Tarih kapatıldı' : 'Tarih açıldı', type: 'success' })
+      loadClosedDates()
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || 'Tarih güncellenirken hata oluştu'
+      setToast({ message: errorMsg, type: 'error' })
+    }
+  }
+
+  const getCalendarDaysForMonth = (monthDate) => {
+    const year = monthDate.getFullYear()
+    const month = monthDate.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const days = []
+
+    // Add empty days for alignment
+    const startDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1 // Monday = 0
+    for (let i = 0; i < startDayOfWeek; i++) {
+      days.push(null)
+    }
+
+    // Add actual days
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+      days.push(new Date(year, month, d))
+    }
+
+    return days
+  }
+
+  const isDateClosed = (date, barberId = null) => {
+    if (!date) return false
+    const dateStr = format(date, 'yyyy-MM-dd')
+    return closedDates.some(cd => {
+      if (dateStr >= cd.start_date && dateStr <= cd.end_date) {
+        if (barberId) {
+          return !cd.barber_id || String(cd.barber_id) === String(barberId)
+        }
+        return !cd.barber_id
+      }
+      return false
+    })
+  }
+
+
   const loadAdminAvailableTimes = async (barberId, date) => {
     if (!barberId || !date) {
       setAvailableTimesForDate([])
@@ -436,9 +707,15 @@ function AdminPage() {
   const handleCreateClosedDate = async (e) => {
     e.preventDefault()
     try {
-      await adminAPI.createClosedDate(closedDateForm)
-      setClosedDateForm({ start_date: '', end_date: '', reason: '', barberId: '' })
+      const payload = { ...closedDateForm }
+      if (closedDateType === 'full') {
+        payload.start_time = ''
+        payload.end_time = ''
+      }
+      await adminAPI.createClosedDate(payload)
+      setClosedDateForm({ start_date: '', end_date: '', start_time: '', end_time: '', reason: '', barberId: '' })
       setShowClosedDateForm(false)
+      setClosedDateType('full')
       loadClosedDates()
       setToast({ message: 'Kapalı tarih aralığı eklendi', type: 'success' })
     } catch (error) {
@@ -453,11 +730,11 @@ function AdminPage() {
   }
 
   const handleDeleteClosedDate = async (id) => {
-    if (!confirm('Bu kapalı tarih aralığını silmek istediğinize emin misiniz?')) return
     try {
       await adminAPI.deleteClosedDate(id)
       loadClosedDates()
       setToast({ message: 'Kapalı tarih silindi', type: 'success' })
+      setConfirmDialog({ isOpen: false, type: null, id: null, message: '' })
     } catch (error) {
       setToast({ message: 'Kapalı tarih silinirken hata oluştu', type: 'error' })
     }
@@ -475,26 +752,36 @@ function AdminPage() {
   }
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Bu randevuyu silmek istediğinize emin misiniz?')) return
     try {
       await adminAPI.deleteBooking(id)
       loadBookings()
       loadStats()
       setToast({ message: 'Randevu silindi', type: 'success' })
+      setConfirmDialog({ isOpen: false, type: null, id: null, message: '' })
     } catch (error) {
       setToast({ message: 'Randevu silinirken hata oluştu', type: 'error' })
     }
   }
 
   const handleCancel = async (id) => {
-    if (!window.confirm('Bu randevuyu iptal etmek istediğinize emin misiniz?')) return
     try {
       await adminAPI.updateBooking(id, 'cancelled')
       loadBookings()
       loadStats()
       setToast({ message: 'Randevu iptal edildi', type: 'success' })
+      setConfirmDialog({ isOpen: false, type: null, id: null, message: '' })
     } catch (error) {
       setToast({ message: 'Randevu iptal edilirken hata oluştu', type: 'error' })
+    }
+  }
+
+  const handleConfirmAction = () => {
+    if (confirmDialog.type === 'delete') {
+      handleDelete(confirmDialog.id)
+    } else if (confirmDialog.type === 'cancel') {
+      handleCancel(confirmDialog.id)
+    } else if (confirmDialog.type === 'deleteClosedDate') {
+      handleDeleteClosedDate(confirmDialog.id)
     }
   }
 
@@ -513,12 +800,18 @@ function AdminPage() {
   }
 
   const handleCall = (phone) => {
-    window.location.href = `tel:${phone}`
+    let cleanPhone = phone.replace(/[^0-9]/g, '')
+    if (cleanPhone.startsWith('0')) cleanPhone = cleanPhone.substring(1)
+    if (!cleanPhone.startsWith('90')) cleanPhone = '90' + cleanPhone
+    window.location.href = `tel:+${cleanPhone}`
   }
 
   const handleMessage = (phone) => {
+    let cleanPhone = phone.replace(/[^0-9]/g, '')
+    if (cleanPhone.startsWith('0')) cleanPhone = cleanPhone.substring(1)
+    if (!cleanPhone.startsWith('90')) cleanPhone = '90' + cleanPhone
     const message = encodeURIComponent('Merhaba, randevunuz hakkında bilgilendirme yapmak istiyoruz.')
-    window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${message}`, '_blank')
+    window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank')
   }
 
   const handleCreateBooking = async (e) => {
@@ -549,22 +842,19 @@ function AdminPage() {
 
     setCreatingBooking(true)
     try {
-      console.log('Looking up barber:', createBookingForm.barberId);
-      console.log('Barber keys:', Object.keys(barbers));
+      const newBarberId = createBookingForm.barberId;
+
 
       let selectedBarber = barbers[createBookingForm.barberId]
 
       // If direct lookup fails (because key is MongoID but we have numeric ID), search by value
       if (!selectedBarber) {
-        console.log('Direct lookup failed, searching by property...');
         selectedBarber = Object.values(barbers).find(b => {
-          console.log(`Checking barber ${b.name}: id=${b.id}, barber_id=${b.barber_id}`);
           return String(b.barber_id) === String(createBookingForm.barberId) ||
             String(b.id) === String(createBookingForm.barberId);
         });
       }
 
-      console.log('Found Barber:', selectedBarber);
 
       // Barber kontrolü
       if (!selectedBarber) {
@@ -599,16 +889,6 @@ function AdminPage() {
         barberIdValue = createBookingForm.barberId;
       }
 
-      console.log('[Admin Create Booking] Barber ID conversion:', {
-        original: createBookingForm.barberId,
-        selectedBarber: {
-          id: selectedBarber.id,
-          numeric_id: selectedBarber.numeric_id,
-          name: selectedBarber.name
-        },
-        final: barberIdValue,
-        finalType: typeof barberIdValue
-      })
 
       const bookingData = {
         barberId: barberIdValue,
@@ -622,13 +902,8 @@ function AdminPage() {
         appointmentTime: createBookingForm.appointmentTime.trim()
       }
 
-      // Debug log
-      console.log('Sending booking data:', bookingData)
-      console.log('Form values:', createBookingForm)
 
       const response = await adminAPI.createBooking(bookingData)
-
-      console.log('Booking created response:', response.data)
 
       setToast({ message: 'Randevu başarıyla oluşturuldu', type: 'success' })
       setShowCreateBookingModal(false)
@@ -744,6 +1019,42 @@ function AdminPage() {
     }, 200)
   }
 
+  const handleTabChange = (targetTab) => {
+    if (activeTab === targetTab) return
+
+    let isDirty = false
+    if (activeTab === 'hours') {
+      isDirty = originalWorkingHours && JSON.stringify(workingHours) !== JSON.stringify(originalWorkingHours)
+    } else if (activeTab === 'settings') {
+      isDirty = originalGeneralSettings && JSON.stringify(generalSettings) !== JSON.stringify(originalGeneralSettings)
+    }
+
+    if (isDirty) {
+      setUnsavedModal({ isOpen: true, targetTab })
+    } else {
+      setActiveTab(targetTab)
+    }
+  }
+
+  const handleDiscardChanges = () => {
+    if (activeTab === 'hours') {
+      if (originalWorkingHours) setWorkingHours(JSON.parse(JSON.stringify(originalWorkingHours)))
+    } else if (activeTab === 'settings') {
+      if (originalGeneralSettings) setGeneralSettings(JSON.parse(JSON.stringify(originalGeneralSettings)))
+    }
+    setActiveTab(unsavedModal.targetTab)
+    setUnsavedModal({ isOpen: false, targetTab: null })
+  }
+
+  const handleSaveChangesForTab = () => {
+    if (activeTab === 'hours') {
+      handleSaveWorkingHours()
+    } else if (activeTab === 'settings') {
+      handleSaveGeneralSettings()
+    }
+  }
+
+
   if (loading) {
     return <div className="admin-loading">Yükleniyor...</div>
   }
@@ -823,7 +1134,7 @@ function AdminPage() {
               title={maintenanceMode ? 'Bakım Modunu Kapat' : 'Bakım Modunu Aç'}
             >
               <Settings size={18} className={maintenanceLoading ? 'spin' : ''} />
-              {maintenanceMode ? 'Bakımı Kapat' : 'Siteyi Bakıma Al'}
+              <span>{maintenanceMode ? 'Bakımı Kapat' : 'Siteyi Bakıma Al'}</span>
             </button>
             <button
               className="create-booking-btn"
@@ -831,235 +1142,609 @@ function AdminPage() {
               title="Yeni Randevu Oluştur"
             >
               <Plus size={18} />
-              Randevu Ekle
+              <span>Randevu Ekle</span>
             </button>
             <button className="refresh-btn outline" onClick={() => loadBookings(showAllBookings)}>Yenile</button>
             <button onClick={handleLogout} className="logout-btn">
               <LogOut size={18} />
-              Çıkış
+              <span>Çıkış</span>
             </button>
           </div>
         </div>
       </header>
 
+      {/* Tab Navigation */}
+      <nav className="admin-tabs">
+        <div className="container">
+          <button
+            className={`tab-btn ${activeTab === 'bookings' ? 'active' : ''}`}
+            onClick={() => handleTabChange('bookings')}
+          >
+            <Calendar size={16} />
+            <span>Randevular</span>
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'services' ? 'active' : ''}`}
+            onClick={() => handleTabChange('services')}
+          >
+            <Scissors size={16} />
+            <span>Hizmetler</span>
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'hours' ? 'active' : ''}`}
+            onClick={() => handleTabChange('hours')}
+          >
+            <Clock size={16} />
+            <span>Saatler</span>
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => handleTabChange('settings')}
+          >
+            <Settings size={16} />
+            <span>Ayarlar</span>
+          </button>
+        </div>
+      </nav>
+
       <main className="admin-main">
         <div className="container">
-          <div className="quick-stats">
-            <div className="stat-chip">
-              <Calendar size={18} />
-              <div>
-                <p>Toplam</p>
-                <strong>{stats?.totalBookings ?? 0}</strong>
-              </div>
-            </div>
 
-            <div className="stat-chip">
-              <Clock size={18} />
-              <div>
-                <p>Bugün</p>
-                <strong>{stats?.todayBookings ?? 0}</strong>
+          {/* ============ RANDEVULAR TAB ============ */}
+          {activeTab === 'bookings' && (
+            <>
+              <div className="quick-stats">
+                <div className="stat-chip">
+                  <Calendar size={18} />
+                  <div>
+                    <p>Toplam</p>
+                    <strong>{stats?.totalBookings ?? 0}</strong>
+                  </div>
+                </div>
+
+                <div className="stat-chip">
+                  <Clock size={18} />
+                  <div>
+                    <p>Bugün</p>
+                    <strong>{stats?.todayBookings ?? 0}</strong>
+                  </div>
+                </div>
+                <div className="stat-chip">
+                  <DollarSign size={18} />
+                  <div>
+                    <p>Toplam Gelir</p>
+                    <strong>{stats?.totalRevenue ?? 0}₺</strong>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="stat-chip">
-              <DollarSign size={18} />
-              <div>
-                <p>Toplam Gelir</p>
-                <strong>{stats?.totalRevenue ?? 0}₺</strong>
-              </div>
-            </div>
-          </div>
 
 
-          <div className="filter-bar">
-            <button className="filter-toggle" onClick={() => setShowFilters(!showFilters)}>
-              <Filter size={16} />
-              Filtreler
-            </button>
-            <label className="show-all-toggle">
-              <input
-                type="checkbox"
-                checked={showAllBookings}
-                onChange={(e) => {
-                  const checked = e.target.checked
-                  setShowAllBookings(checked)
-                  localStorage.setItem('showAllBookings', checked ? 'true' : 'false')
-                  if (!checked) {
-                    const barberId = localStorage.getItem('adminBarberId')
-                    if (barberId) setFilters(prev => ({ ...prev, barberId: String(barberId) }))
-                  } else {
-                    setFilters(prev => ({ ...prev, barberId: '' }))
-                  }
-                  loadBookings(checked)
-                }}
-              />
-              <span>Tüm randevular</span>
-            </label>
-          </div>
+              <div className="filter-bar">
+                <button className="filter-toggle" onClick={() => setShowFilters(!showFilters)}>
+                  <Filter size={16} />
+                  Filtreler
+                </button>
+                <label className="show-all-toggle">
+                  <input
+                    type="checkbox"
+                    checked={showAllBookings}
+                    onChange={(e) => {
+                      const checked = e.target.checked
+                      setShowAllBookings(checked)
+                      localStorage.setItem('showAllBookings', checked ? 'true' : 'false')
+                      if (!checked) {
+                        const barberId = localStorage.getItem('adminBarberId')
+                        if (barberId) setFilters(prev => ({ ...prev, barberId: String(barberId) }))
+                      } else {
+                        setFilters(prev => ({ ...prev, barberId: '' }))
+                      }
+                      loadBookings(checked)
+                    }}
+                  />
+                  <span>Tüm randevular</span>
+                </label>
+              </div>
 
-          {showFilters && (
-            <div className="filters-sheet">
-              <div className="filter-group">
-                <span>Durum</span>
-                <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
-                  <option value="">Hepsi</option>
-                  <option value="pending">Beklemede</option>
-                  <option value="confirmed">Onaylandı</option>
-                  <option value="completed">Tamamlandı</option>
-                  <option value="cancelled">İptal</option>
-                </select>
-              </div>
-              <div className="filter-group">
-                <span>Berber</span>
-                <select value={filters.barberId} onChange={(e) => setFilters({ ...filters, barberId: e.target.value })}>
-                  <option value="">Hepsi</option>
-                  <option value="1">Hıdır Yasin Gökçeoğlu</option>
-                  <option value="2">Emir Gökçeoğlu</option>
-                </select>
-              </div>
-              <div className="filter-group">
-                <span>Tarih</span>
-                <input
-                  type="date"
-                  value={filters.date}
-                  onChange={(e) => setFilters({ ...filters, date: e.target.value })}
-                />
-              </div>
-              <div className="filter-actions">
-                <button className="outline" onClick={() => setFilters({ status: '', barberId: '', date: '' })}>Temizle</button>
-                <button className="primary" onClick={() => { setShowFilters(false); loadBookings() }}>Uygula</button>
-              </div>
-            </div>
+              {showFilters && (
+                <div className="filters-sheet">
+                  <div className="filter-group">
+                    <span>Durum</span>
+                    <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
+                      <option value="">Hepsi</option>
+                      <option value="pending">Beklemede</option>
+                      <option value="confirmed">Onaylandı</option>
+                      <option value="completed">Tamamlandı</option>
+                      <option value="cancelled">İptal</option>
+                    </select>
+                  </div>
+                  <div className="filter-group">
+                    <span>Berber</span>
+                    <select value={filters.barberId} onChange={(e) => setFilters({ ...filters, barberId: e.target.value })}>
+                      <option value="">Hepsi</option>
+                      {Object.values(barbers).map(barber => (
+                        <option key={barber.barber_id || barber.id} value={barber.barber_id || barber.id}>{barber.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="filter-group">
+                    <span>Tarih</span>
+                    <input
+                      type="date"
+                      value={filters.date}
+                      onChange={(e) => setFilters({ ...filters, date: e.target.value })}
+                    />
+                  </div>
+                  <div className="filter-actions">
+                    <button className="outline" onClick={() => setFilters({ status: '', barberId: '', date: '' })}>Temizle</button>
+                    <button className="primary" onClick={() => { setShowFilters(false); loadBookings() }}>Uygula</button>
+                  </div>
+                </div>
+              )}
+
+              <section className="card calendar-card">
+                <div className="calendar-header">
+                  <div>
+                    <p className="muted">14 günlük görünüm</p>
+                    <strong>{format(horizonStart, 'd MMM', { locale: tr })} - {format(horizonEnd, 'd MMM', { locale: tr })}</strong>
+                  </div>
+                </div>
+                <div className="day-strip">
+                  {bookingsByDate.map(({ date, label, bookings: list, isClosed }) => (
+                    <button
+                      key={date}
+                      className={`day-tile ${list.length ? 'has-booking' : ''} ${isSameDay(parseISO(date), horizonStart) ? 'is-today' : ''} ${isClosed ? 'is-closed' : ''}`}
+                      onClick={() => openDay(date, list)}
+                    >
+                      <div className="day-tile-head">
+                        <span className="day-label">{label}</span>
+                        {list.length > 0 && <span className="count-chip">{list.length}</span>}
+                        {isClosed && <span className="status-badge error" style={{ fontSize: '10px', padding: '2px 6px' }}>KAPALI</span>}
+                      </div>
+                      <div className="day-tile-body">
+                        {isClosed ? (
+                          <p className="muted tiny text-danger">Bu tarih kapalı</p>
+                        ) : list.length === 0 ? (
+                          <p className="muted tiny">Kayıt yok</p>
+                        ) : (
+                          <p className="muted tiny">Detay için dokun</p>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="card closed-card">
+                <div className="closed-header">
+                  <div>
+                    <h3>Kapalı Tarihler</h3>
+                    <p className="muted">Aralık ekle/sil</p>
+                  </div>
+                  <button className="refresh-btn" onClick={() => setShowClosedDateForm(!showClosedDateForm)}>
+                    {showClosedDateForm ? 'İptal' : 'Yeni Ekle'}
+                  </button>
+                </div>
+
+                {showClosedDateForm && (
+                  <form onSubmit={handleCreateClosedDate} className="closed-form">
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Başlangıç</label>
+                        <input
+                          type="date"
+                          value={closedDateForm.start_date}
+                          onChange={(e) => setClosedDateForm({ ...closedDateForm, start_date: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Bitiş</label>
+                        <input
+                          type="date"
+                          value={closedDateForm.end_date}
+                          onChange={(e) => setClosedDateForm({ ...closedDateForm, end_date: e.target.value })}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>Sebep (opsiyonel)</label>
+                      <input
+                        type="text"
+                        value={closedDateForm.reason}
+                        onChange={(e) => setClosedDateForm({ ...closedDateForm, reason: e.target.value })}
+                        placeholder="Örn: Tatil, bakım..."
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Berber (Opsiyonel)</label>
+                      <select
+                        value={closedDateForm.barberId || ''}
+                        onChange={(e) => setClosedDateForm({ ...closedDateForm, barberId: e.target.value })}
+                      >
+                        <option value="">Hepsi (Tüm Dükkan Kapalı)</option>
+                        {Object.values(barbers).map(barber => (
+                          <option key={barber.id} value={barber.barber_id}>{barber.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-actions">
+                      <button type="button" className="outline" onClick={() => setShowClosedDateForm(false)}>Vazgeç</button>
+                      <button type="submit" className="primary">Kaydet</button>
+                    </div>
+                  </form>
+                )}
+
+                {closedDates.length === 0 ? (
+                  <div className="empty small">Kapalı tarih aralığı yok</div>
+                ) : (
+                  <div className="closed-list">
+                    {closedDates
+                      .filter(cd => !isBefore(parseISO(cd.end_date), startOfDay(new Date())))
+                      .map((closedDate) => (
+                        <div key={closedDate.id} className="closed-item">
+                          <div>
+                            <div className="closed-dates">
+                              <span>{closedDate.start_date}</span>
+                              <ChevronRight size={14} />
+                              <span>{closedDate.end_date}</span>
+                            </div>
+                            {closedDate.reason && <p className="muted tiny">{closedDate.reason}</p>}
+                            <span className="badge-barber">
+                              {(() => {
+                                if (!closedDate.barber_id) return 'Tümü';
+                                const b = Object.values(barbers).find(barber =>
+                                  String(barber.barber_id) === String(closedDate.barber_id) ||
+                                  String(barber.id) === String(closedDate.barber_id)
+                                );
+                                return b ? b.name : 'Bilinmeyen';
+                              })()}
+                            </span>
+                          </div>
+                          <button className="icon-btn danger" onClick={() => setConfirmDialog({ isOpen: true, type: 'deleteClosedDate', id: closedDate.id, message: 'Bu kapalı tarih aralığını silmek istediğinize emin misiniz?' })}>
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </section>
+            </>
           )}
 
-          <section className="card calendar-card">
-            <div className="calendar-header">
-              <div>
-                <p className="muted">14 günlük görünüm</p>
-                <strong>{format(horizonStart, 'd MMM', { locale: tr })} - {format(horizonEnd, 'd MMM', { locale: tr })}</strong>
-              </div>
-            </div>
-            <div className="day-strip">
-              {bookingsByDate.map(({ date, label, bookings: list, isClosed }) => (
-                <button
-                  key={date}
-                  className={`day-tile ${list.length ? 'has-booking' : ''} ${isSameDay(parseISO(date), horizonStart) ? 'is-today' : ''} ${isClosed ? 'is-closed' : ''}`}
-                  onClick={() => openDay(date, list)}
-                >
-                  <div className="day-tile-head">
-                    <span className="day-label">{label}</span>
-                    {list.length > 0 && <span className="count-chip">{list.length}</span>}
-                    {isClosed && <span className="status-badge error" style={{ fontSize: '10px', padding: '2px 6px' }}>KAPALI</span>}
-                  </div>
-                  <div className="day-tile-body">
-                    {isClosed ? (
-                      <p className="muted tiny text-danger">Bu tarih kapalı</p>
-                    ) : list.length === 0 ? (
-                      <p className="muted tiny">Kayıt yok</p>
-                    ) : (
-                      <p className="muted tiny">Detay için dokun</p>
-                    )}
-                  </div>
+          {/* ============ HİZMETLER TAB ============ */}
+          {activeTab === 'services' && (
+            <section className="card services-management-card">
+              <div className="section-header">
+                <div>
+                  <h3>Hizmet Yönetimi</h3>
+                  <p className="muted">Hizmetleri ekle, düzenle veya sil</p>
+                </div>
+                <button className="refresh-btn" onClick={() => {
+                  setEditingService(null)
+                  setServiceForm({ name: '', duration: 30, price: 0, active: true })
+                  setShowServiceModal(true)
+                }}>
+                  <Plus size={16} />
+                  Yeni Hizmet
                 </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="card closed-card">
-            <div className="closed-header">
-              <div>
-                <h3>Kapalı Tarihler</h3>
-                <p className="muted">Aralık ekle/sil</p>
               </div>
-              <button className="refresh-btn" onClick={() => setShowClosedDateForm(!showClosedDateForm)}>
-                {showClosedDateForm ? 'İptal' : 'Yeni Ekle'}
-              </button>
-            </div>
 
-            {showClosedDateForm && (
-              <form onSubmit={handleCreateClosedDate} className="closed-form">
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Başlangıç</label>
-                    <input
-                      type="date"
-                      value={closedDateForm.start_date}
-                      onChange={(e) => setClosedDateForm({ ...closedDateForm, start_date: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Bitiş</label>
-                    <input
-                      type="date"
-                      value={closedDateForm.end_date}
-                      onChange={(e) => setClosedDateForm({ ...closedDateForm, end_date: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label>Sebep (opsiyonel)</label>
-                  <input
-                    type="text"
-                    value={closedDateForm.reason}
-                    onChange={(e) => setClosedDateForm({ ...closedDateForm, reason: e.target.value })}
-                    placeholder="Örn: Tatil, bakım..."
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Berber (Opsiyonel)</label>
-                  <select
-                    value={closedDateForm.barberId || ''}
-                    onChange={(e) => setClosedDateForm({ ...closedDateForm, barberId: e.target.value })}
-                  >
-                    <option value="">Hepsi (Tüm Dükkan Kapalı)</option>
-                    {Object.values(barbers).map(barber => (
-                      <option key={barber.id} value={barber.barber_id}>{barber.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-actions">
-                  <button type="button" className="outline" onClick={() => setShowClosedDateForm(false)}>Vazgeç</button>
-                  <button type="submit" className="primary">Kaydet</button>
-                </div>
-              </form>
-            )}
-
-            {closedDates.length === 0 ? (
-              <div className="empty small">Kapalı tarih aralığı yok</div>
-            ) : (
-              <div className="closed-list">
-                {closedDates.map((closedDate) => (
-                  <div key={closedDate.id} className="closed-item">
-                    <div>
-                      <div className="closed-dates">
-                        <span>{closedDate.start_date}</span>
-                        <ChevronRight size={14} />
-                        <span>{closedDate.end_date}</span>
+              <div className="services-list">
+                {allServices.length === 0 ? (
+                  <div className="empty small">Henüz hizmet eklenmemiş</div>
+                ) : (
+                  allServices.map(service => (
+                    <div key={service.id} className={`service-item ${!service.active ? 'inactive' : ''}`}>
+                      <div className="service-info">
+                        <strong>{service.name}</strong>
+                        <div className="service-meta">
+                          <span>{service.duration} dk</span>
+                          <span className="price">{service.price}₺</span>
+                          <span className={`status-badge ${service.active ? 'success' : 'error'}`}>
+                            {service.active ? 'Aktif' : 'Pasif'}
+                          </span>
+                        </div>
                       </div>
-                      {closedDate.reason && <p className="muted tiny">{closedDate.reason}</p>}
-                      <span className="badge-barber">
-                        {(() => {
-                          if (!closedDate.barber_id) return 'Tümü';
-                          const b = Object.values(barbers).find(barber =>
-                            String(barber.barber_id) === String(closedDate.barber_id) ||
-                            String(barber.id) === String(closedDate.barber_id)
-                          );
-                          return b ? b.name : 'Bilinmeyen';
-                        })()}
-                      </span>
+                      <div className="service-actions">
+                        <button className="icon-btn" onClick={() => openEditService(service)}>
+                          <Settings size={16} />
+                        </button>
+                        <button className="icon-btn danger" onClick={() => handleDeleteService(service.id)}>
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
-                    <button className="icon-btn danger" onClick={() => handleDeleteClosedDate(closedDate.id)}>
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
-            )}
-          </section>
+            </section>
+          )}
+
+          {/* ============ ÇALIŞMA SAATLERİ TAB ============ */}
+          {activeTab === 'hours' && (
+            <section className="card working-hours-card">
+              <div className="section-header">
+                <div>
+                  <h3>Çalışma Saatleri</h3>
+                  <p className="muted">Randevu alınabilecek saatleri belirleyin</p>
+                </div>
+              </div>
+
+              <div className="hours-form">
+                <div className="hours-row">
+                  <div className="hours-row-header">
+                    <label>Hafta İçi (Pazartesi - Cuma)</label>
+                    <div className="hours-inputs">
+                      <input
+                        type="time"
+                        value={workingHours.weekday?.start || '09:00'}
+                        onChange={(e) => setWorkingHours({
+                          ...workingHours,
+                          weekday: { ...workingHours.weekday, start: e.target.value }
+                        })}
+                      />
+                      <span>-</span>
+                      <input
+                        type="time"
+                        value={workingHours.weekday?.end || '20:00'}
+                        onChange={(e) => setWorkingHours({
+                          ...workingHours,
+                          weekday: { ...workingHours.weekday, end: e.target.value }
+                        })}
+                      />
+                    </div>
+                  </div>
+                  {renderBreaks('weekday')}
+                </div>
+
+                <div className="hours-row">
+                  <div className="hours-row-header">
+                    <label>Cumartesi</label>
+                    <div className="hours-inputs">
+                      <input
+                        type="time"
+                        value={workingHours.saturday?.start || '09:00'}
+                        onChange={(e) => setWorkingHours({
+                          ...workingHours,
+                          saturday: { ...workingHours.saturday, start: e.target.value }
+                        })}
+                      />
+                      <span>-</span>
+                      <input
+                        type="time"
+                        value={workingHours.saturday?.end || '22:00'}
+                        onChange={(e) => setWorkingHours({
+                          ...workingHours,
+                          saturday: { ...workingHours.saturday, end: e.target.value }
+                        })}
+                      />
+                    </div>
+                  </div>
+                  {renderBreaks('saturday')}
+                </div>
+
+                <div className="hours-row sunday-row">
+                  <div className="hours-row-header">
+                    <label>Pazar</label>
+                    <div className="hours-inputs sunday-inputs">
+                      <label className="checkbox-label toggle-switch">
+                        <input
+                          type="checkbox"
+                          checked={!workingHours.sunday?.closed}
+                          onChange={(e) => setWorkingHours({
+                            ...workingHours,
+                            sunday: {
+                              ...workingHours.sunday,
+                              closed: !e.target.checked,
+                              start: workingHours.sunday?.start || '10:00',
+                              end: workingHours.sunday?.end || '18:00'
+                            }
+                          })}
+                        />
+                        <span className="toggle-slider"></span>
+                        <span className="toggle-text">{workingHours.sunday?.closed ? 'Kapalı' : 'Açık'}</span>
+                      </label>
+                      {!workingHours.sunday?.closed && (
+                        <>
+                          <input
+                            type="time"
+                            value={workingHours.sunday?.start || '10:00'}
+                            onChange={(e) => setWorkingHours({
+                              ...workingHours,
+                              sunday: { ...workingHours.sunday, start: e.target.value }
+                            })}
+                          />
+                          <span>-</span>
+                          <input
+                            type="time"
+                            value={workingHours.sunday?.end || '18:00'}
+                            onChange={(e) => setWorkingHours({
+                              ...workingHours,
+                              sunday: { ...workingHours.sunday, end: e.target.value }
+                            })}
+                          />
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {!workingHours.sunday?.closed && renderBreaks('sunday')}
+                </div>
+
+                <div className="hours-row">
+                  <label>Randevu Aralığı</label>
+                  <div className="hours-inputs">
+                    <select
+                      value={workingHours.slotDuration || 60}
+                      onChange={(e) => setWorkingHours({
+                        ...workingHours,
+                        slotDuration: parseInt(e.target.value)
+                      })}
+                    >
+                      <option value={30}>30 dakika</option>
+                      <option value={60}>1 saat</option>
+                      <option value={90}>1.5 saat</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-actions">
+                  <button
+                    className="primary"
+                    onClick={handleSaveWorkingHours}
+                    disabled={savingWorkingHours}
+                  >
+                    {savingWorkingHours ? 'Kaydediliyor...' : 'Kaydet'}
+                  </button>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* ============ AYARLAR TAB ============ */}
+          {activeTab === 'settings' && (
+            <section className="card settings-card">
+              <div className="section-header">
+                <div>
+                  <h3>Genel Ayarlar</h3>
+                  <p className="muted">Randevu sistemi ayarlarını yönetin</p>
+                </div>
+              </div>
+
+              <div className="settings-form">
+                {/* Booking Horizon */}
+                <div className="settings-item">
+                  <div className="settings-item-info">
+                    <label>Randevu Ufku (Gün)</label>
+                    <p className="muted">Müşteriler kaç gün sonrasına kadar randevu alabilir</p>
+                  </div>
+                  <div className="settings-item-control">
+                    <select
+                      value={generalSettings.booking_horizon}
+                      onChange={(e) => setGeneralSettings({ ...generalSettings, booking_horizon: parseInt(e.target.value) })}
+                    >
+                      <option value={7}>7 gün</option>
+                      <option value={14}>14 gün</option>
+                      <option value={21}>21 gün</option>
+                      <option value={30}>30 gün</option>
+                      <option value={45}>45 gün</option>
+                      <option value={60}>60 gün</option>
+                    </select>
+                  </div>
+                </div>
+
+
+
+                {/* Auto Confirm */}
+                <div className="settings-item">
+                  <div className="settings-item-info">
+                    <label>Otomatik Onay</label>
+                    <p className="muted">Yeni randevular otomatik olarak onaylansın mı</p>
+                  </div>
+                  <div className="settings-item-control">
+                    <div
+                      className="toggle-switch"
+                      onClick={() => setGeneralSettings({ ...generalSettings, auto_confirm: !generalSettings.auto_confirm })}
+                      style={{
+                        width: '48px',
+                        height: '26px',
+                        borderRadius: '13px',
+                        background: generalSettings.auto_confirm ? 'linear-gradient(135deg, #c8a45a, #e0c068)' : '#444',
+                        position: 'relative',
+                        transition: 'background 0.3s',
+                        cursor: 'pointer',
+                        border: generalSettings.auto_confirm ? '1px solid #c8a45a' : '1px solid #555'
+                      }}
+                    >
+                      <div style={{
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        background: '#fff',
+                        position: 'absolute',
+                        top: '2px',
+                        left: generalSettings.auto_confirm ? '25px' : '3px',
+                        transition: 'left 0.3s',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                      }} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-actions">
+                  <button
+                    className="primary"
+                    onClick={handleSaveGeneralSettings}
+                    disabled={savingGeneralSettings}
+                  >
+                    {savingGeneralSettings ? 'Kaydediliyor...' : 'Ayarları Kaydet'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Closed Dates */}
+              <div className="closed-ranges-section">
+                <h4>Kapalı Tarih Aralıkları</h4>
+                <button className="refresh-btn small" onClick={() => setShowClosedDateForm(!showClosedDateForm)}>
+                  {showClosedDateForm ? 'İptal' : 'Aralık Ekle'}
+                </button>
+
+                {showClosedDateForm && (
+                  <form onSubmit={handleCreateClosedDate} className="closed-form compact">
+                    <div className="form-row type-selector" style={{ display: 'flex', gap: '16px', marginBottom: '8px' }}>
+                      <label className="radio-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                        <input type="radio" checked={closedDateType === 'full'} onChange={() => setClosedDateType('full')} />
+                        <span style={{ fontSize: '13px', color: '#fff' }}>Tüm Gün</span>
+                      </label>
+                      <label className="radio-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                        <input type="radio" checked={closedDateType === 'partial'} onChange={() => setClosedDateType('partial')} />
+                        <span style={{ fontSize: '13px', color: '#fff' }}>Belirli Saat</span>
+                      </label>
+                    </div>
+                    <div className="form-row">
+                      <input type="date" value={closedDateForm.start_date} onChange={(e) => setClosedDateForm({ ...closedDateForm, start_date: e.target.value })} required />
+                      <span>-</span>
+                      <input type="date" value={closedDateForm.end_date} onChange={(e) => setClosedDateForm({ ...closedDateForm, end_date: e.target.value })} required />
+                    </div>
+                    {closedDateType === 'partial' && (
+                      <div className="form-row">
+                        <input type="time" title="Başlangıç Saati" value={closedDateForm.start_time} onChange={(e) => setClosedDateForm({ ...closedDateForm, start_time: e.target.value })} required />
+                        <span>-</span>
+                        <input type="time" title="Bitiş Saati" value={closedDateForm.end_time} onChange={(e) => setClosedDateForm({ ...closedDateForm, end_time: e.target.value })} required />
+                      </div>
+                    )}
+                    <input type="text" placeholder="Sebep (opsiyonel)" value={closedDateForm.reason} onChange={(e) => setClosedDateForm({ ...closedDateForm, reason: e.target.value })} />
+                    <button type="submit" className="primary small">Ekle</button>
+                  </form>
+                )}
+
+                <div className="closed-list">
+                  {closedDates
+                    .filter(cd => !isBefore(parseISO(cd.end_date), startOfDay(new Date())))
+                    .map(cd => (
+                      <div key={cd.id} className="closed-item">
+                        <div>
+                          <span>
+                            {cd.start_date} {cd.start_date !== cd.end_date && `→ ${cd.end_date}`}
+                            {cd.start_time && cd.end_time && ` (${cd.start_time} - ${cd.end_time})`}
+                          </span>
+                          <p className="muted tiny">{cd.reason || 'Sebep belirtilmedi'}</p>
+                          {cd.barber_name && <span className="status-badge" style={{ marginTop: '4px', fontSize: '11px', display: 'inline-block' }}>{cd.barber_name}</span>}
+                        </div>
+                        <button className="icon-btn danger" onClick={() => setConfirmDialog({ isOpen: true, type: 'deleteClosedDate', id: cd.id, message: 'Bu kapalı tarih aralığını silmek istediğinize emin misiniz?' })}>
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </section>
+          )}
+
+
         </div>
-      </main >
+      </main>
 
       {showDetailSheet && (
         <div className="sheet-backdrop" onClick={closeSheet}>
@@ -1114,11 +1799,11 @@ function AdminPage() {
                         </>
                       )}
                       {booking.status !== 'cancelled' && (
-                        <button className="icon-btn warn" onClick={() => handleCancel(booking.id)} aria-label="İptal">
+                        <button className="icon-btn warn" onClick={() => setConfirmDialog({ isOpen: true, type: 'cancel', id: booking.id, message: 'Bu randevuyu iptal etmek istediğinize emin misiniz?' })} aria-label="İptal">
                           <XCircle size={16} />
                         </button>
                       )}
-                      <button className="icon-btn danger" onClick={() => handleDelete(booking.id)} aria-label="Sil">
+                      <button className="icon-btn danger" onClick={() => setConfirmDialog({ isOpen: true, type: 'delete', id: booking.id, message: 'Bu randevuyu silmek istediğinize emin misiniz?' })} aria-label="Sil">
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -1128,166 +1813,149 @@ function AdminPage() {
             )}
           </div>
         </div>
-      )
-      }
+      )}
 
-      <div className="admin-footer-actions" style={{ padding: '20px', textAlign: 'center' }}>
-        <button
-          className="golden-button outline"
-          onClick={() => navigate('/admin/stats')}
-          style={{ width: '100%', maxWidth: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', margin: '0 auto' }}
-        >
-          <TrendingUp size={20} />
-          İstatistikler ve Raporlar
-        </button>
-      </div>
-
-      {/* Create Booking Modal */}
-      {
-        showCreateBookingModal && (
-          <div className="modal-overlay" onClick={() => setShowCreateBookingModal(false)}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h2>Yeni Randevu Oluştur</h2>
-                <button className="modal-close" onClick={() => setShowCreateBookingModal(false)}>
-                  <X size={20} />
-                </button>
-              </div>
-              <form onSubmit={handleCreateBooking} className="create-booking-form">
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Berber *</label>
-                    <select
-                      value={createBookingForm.barberId}
-                      onChange={(e) => {
-                        const newBarberId = e.target.value
-                        setCreateBookingForm({ ...createBookingForm, barberId: newBarberId, appointmentTime: '' })
-                        if (newBarberId && createBookingForm.appointmentDate) {
-                          loadAdminAvailableTimes(newBarberId, createBookingForm.appointmentDate)
-                        }
-                      }}
-                      required
-                    >
-                      <option value="">Seçiniz</option>
-                      {Object.values(barbers).map(barber => (
-                        <option key={barber.id} value={barber.barber_id || barber.id}>{barber.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Tarih *</label>
-                    <input
-                      type="date"
-                      value={createBookingForm.appointmentDate}
-                      onChange={(e) => {
-                        const newDate = e.target.value
-                        setCreateBookingForm({ ...createBookingForm, appointmentDate: newDate, appointmentTime: '' })
-                        if (newDate && createBookingForm.barberId) {
-                          loadAdminAvailableTimes(createBookingForm.barberId, newDate)
-                        }
-                      }}
-                      min={format(new Date(), 'yyyy-MM-dd')}
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Saat *</label>
-                    {loadingAvailableTimes ? (
-                      <div>Yükleniyor...</div>
-                    ) : (
-                      <select
-                        value={createBookingForm.appointmentTime}
-                        onChange={(e) => setCreateBookingForm({ ...createBookingForm, appointmentTime: e.target.value })}
-                        required
-                        disabled={!createBookingForm.barberId || !createBookingForm.appointmentDate}
-                      >
-                        <option value="">Seçiniz</option>
-                        {availableTimesForDate.map(time => (
-                          <option key={time} value={time}>{time}</option>
-                        ))}
-                        {availableTimesForDate.length === 0 && createBookingForm.barberId && createBookingForm.appointmentDate && (
-                          <option disabled>Bu tarihte müsait saat yok</option>
-                        )}
-                      </select>
-                    )}
-                  </div>
-                  <div className="form-group">
-                    <label>Hizmet *</label>
-                    <select
-                      value={createBookingForm.serviceName}
-                      onChange={(e) => {
-                        const selected = services.find(s => s.name === e.target.value)
-                        setCreateBookingForm({
-                          ...createBookingForm,
-                          serviceName: e.target.value,
-                          servicePrice: selected ? selected.price.toString() : ''
-                        })
-                      }}
-                      required
-                    >
-                      <option value="">Seçiniz</option>
-                      {services.map(service => (
-                        <option key={service.id} value={service.name}>
-                          {service.name}
-                        </option>
-                      ))}
-                    </select>
-                    {createBookingForm.serviceName && (
-                      <div style={{ marginTop: '8px', fontSize: '14px', color: '#FFD700', fontWeight: 'bold' }}>
-                        Fiyat: {services.find(s => s.name === createBookingForm.serviceName)?.price || 0}₺
-                      </div>
-                    )}
-                  </div>
+      {showCreateBookingModal && (
+        <div className="modal-overlay" onClick={() => setShowCreateBookingModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Yeni Randevu Oluştur</h2>
+              <button className="modal-close" onClick={() => setShowCreateBookingModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleCreateBooking} className="create-booking-form">
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Berber *</label>
+                  <select
+                    value={createBookingForm.barberId}
+                    onChange={(e) => {
+                      setCreateBookingForm({ ...createBookingForm, barberId: e.target.value, appointmentDate: '', appointmentTime: '' })
+                      setAvailableTimesForDate([])
+                    }}
+                    required
+                  >
+                    <option value="">Seçiniz</option>
+                    {Object.values(barbers).map(barber => (
+                      <option key={barber.barber_id || barber.id} value={barber.barber_id || barber.id}>{barber.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="form-group">
-                  <label>Müşteri Adı *</label>
+                  <label>Tarih *</label>
                   <input
-                    type="text"
-                    value={createBookingForm.customerName}
-                    onChange={(e) => setCreateBookingForm({ ...createBookingForm, customerName: e.target.value })}
+                    type="date"
+                    value={createBookingForm.appointmentDate}
+                    onChange={(e) => {
+                      setCreateBookingForm({ ...createBookingForm, appointmentDate: e.target.value, appointmentTime: '' })
+                      if (createBookingForm.barberId && e.target.value) {
+                        loadAdminAvailableTimes(createBookingForm.barberId, e.target.value)
+                      }
+                    }}
+                    min={format(new Date(), 'yyyy-MM-dd')}
+                    max={format(addDays(new Date(), 30), 'yyyy-MM-dd')}
                     required
                   />
                 </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Telefon *</label>
-                    <input
-                      type="tel"
-                      value={createBookingForm.customerPhone}
-                      onChange={(e) => {
-                        let val = e.target.value.replace(/[^0-9]/g, '');
-                        if (val.startsWith('0')) val = val.substring(1);
-                        if (val.length > 10) val = val.substring(0, 10);
-                        setCreateBookingForm({ ...createBookingForm, customerPhone: val });
-                      }}
-                      placeholder="5XX XXX XX XX"
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Saat *</label>
+                  {loadingAvailableTimes ? (
+                    <p className="muted">Yükleniyor...</p>
+                  ) : (
+                    <select
+                      value={createBookingForm.appointmentTime}
+                      onChange={(e) => setCreateBookingForm({ ...createBookingForm, appointmentTime: e.target.value })}
                       required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Email</label>
-                    <input
-                      type="email"
-                      value={createBookingForm.customerEmail}
-                      onChange={(e) => setCreateBookingForm({ ...createBookingForm, customerEmail: e.target.value })}
-                    />
-                  </div>
+                      disabled={!createBookingForm.appointmentDate}
+                    >
+                      <option value="">Seçiniz</option>
+                      {availableTimesForDate.length > 0 ? (
+                        availableTimesForDate.map(time => (
+                          <option key={time} value={time}>{time}</option>
+                        ))
+                      ) : createBookingForm.appointmentDate ? (
+                        <option disabled>Bu tarihte müsait saat yok</option>
+                      ) : null}
+                    </select>
+                  )}
                 </div>
-                <div className="modal-actions">
-                  <button type="button" className="btn-secondary" onClick={() => setShowCreateBookingModal(false)}>
-                    İptal
-                  </button>
-                  <button type="submit" className="btn-primary" disabled={creatingBooking}>
-                    {creatingBooking ? 'Oluşturuluyor...' : 'Randevu Oluştur'}
-                  </button>
+                <div className="form-group">
+                  <label>Hizmet *</label>
+                  <select
+                    value={createBookingForm.serviceName}
+                    onChange={(e) => {
+                      const selected = services.find(s => s.name === e.target.value)
+                      setCreateBookingForm({
+                        ...createBookingForm,
+                        serviceName: e.target.value,
+                        servicePrice: selected ? selected.price.toString() : ''
+                      })
+                    }}
+                    required
+                  >
+                    <option value="">Seçiniz</option>
+                    {services.map(service => (
+                      <option key={service.id} value={service.name}>
+                        {service.name}
+                      </option>
+                    ))}
+                  </select>
+                  {createBookingForm.serviceName && (
+                    <div style={{ marginTop: '8px', fontSize: '14px', color: '#FFD700', fontWeight: 'bold' }}>
+                      Fiyat: {services.find(s => s.name === createBookingForm.serviceName)?.price || 0}₺
+                    </div>
+                  )}
                 </div>
-              </form>
-            </div>
+              </div>
+              <div className="form-group">
+                <label>Müşteri Adı *</label>
+                <input
+                  type="text"
+                  value={createBookingForm.customerName}
+                  onChange={(e) => setCreateBookingForm({ ...createBookingForm, customerName: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Telefon *</label>
+                  <input
+                    type="tel"
+                    value={createBookingForm.customerPhone}
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/[^0-9]/g, '');
+                      if (val.startsWith('0')) val = val.substring(1);
+                      if (val.length > 10) val = val.substring(0, 10);
+                      setCreateBookingForm({ ...createBookingForm, customerPhone: val });
+                    }}
+                    placeholder="5XX XXX XX XX"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    value={createBookingForm.customerEmail}
+                    onChange={(e) => setCreateBookingForm({ ...createBookingForm, customerEmail: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn-secondary" onClick={() => setShowCreateBookingModal(false)}>
+                  İptal
+                </button>
+                <button type="submit" className="btn-primary" disabled={creatingBooking}>
+                  {creatingBooking ? 'Oluşturuluyor...' : 'Randevu Oluştur'}
+                </button>
+              </div>
+            </form>
           </div>
-        )
-      }
+        </div>
+      )}
 
       {/* Daily Report Section */}
       <div className="daily-report-section">
@@ -1315,6 +1983,158 @@ function AdminPage() {
           </div>
         </div>
       </div>
+      {/* Service Modal */}
+      {
+        showServiceModal && (
+          <div className="modal-overlay" onClick={() => { setShowServiceModal(false); setEditingService(null); }}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>{editingService ? 'Hizmet Düzenle' : 'Yeni Hizmet Ekle'}</h2>
+                <button className="modal-close" onClick={() => { setShowServiceModal(false); setEditingService(null); }}>
+                  <X size={20} />
+                </button>
+              </div>
+              <form onSubmit={editingService ? handleUpdateService : handleCreateService} className="service-form">
+                <div className="form-group">
+                  <label>Hizmet Adı *</label>
+                  <input
+                    type="text"
+                    value={serviceForm.name}
+                    onChange={(e) => setServiceForm({ ...serviceForm, name: e.target.value })}
+                    placeholder="Örn: Saç Kesimi"
+                    required
+                  />
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Süre (dakika)</label>
+                    <input
+                      type="number"
+                      value={serviceForm.duration}
+                      onChange={(e) => setServiceForm({ ...serviceForm, duration: parseInt(e.target.value) || 30 })}
+                      min="15"
+                      step="15"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Fiyat (₺)</label>
+                    <input
+                      type="number"
+                      value={serviceForm.price}
+                      onChange={(e) => setServiceForm({ ...serviceForm, price: parseInt(e.target.value) || 0 })}
+                      min="0"
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="toggle-label" style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '8px 0' }}>
+                    <div
+                      className="toggle-switch"
+                      onClick={(e) => { e.preventDefault(); setServiceForm({ ...serviceForm, active: !serviceForm.active }) }}
+                      style={{
+                        width: '48px',
+                        height: '26px',
+                        borderRadius: '13px',
+                        background: serviceForm.active ? 'linear-gradient(135deg, #c8a45a, #e0c068)' : '#444',
+                        position: 'relative',
+                        transition: 'background 0.3s',
+                        flexShrink: 0,
+                        border: serviceForm.active ? '1px solid #c8a45a' : '1px solid #555'
+                      }}
+                    >
+                      <div style={{
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        background: '#fff',
+                        position: 'absolute',
+                        top: '2px',
+                        left: serviceForm.active ? '25px' : '3px',
+                        transition: 'left 0.3s',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                      }} />
+                    </div>
+                    <span style={{ color: serviceForm.active ? '#c8a45a' : '#888', fontSize: '14px', transition: 'color 0.3s' }}>
+                      {serviceForm.active ? 'Aktif — müşteriler görebilir' : 'Pasif — müşteriler göremez'}
+                    </span>
+                  </label>
+                </div>
+                <div className="modal-actions">
+                  <button type="button" className="btn-secondary" onClick={() => { setShowServiceModal(false); setEditingService(null); }}>
+                    İptal
+                  </button>
+                  <button type="submit" className="btn-primary">
+                    {editingService ? 'Güncelle' : 'Ekle'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )
+      }
+      {/* UNSAVED CHANGES MODAL */}
+      {unsavedModal.isOpen && (
+        <div className="modal-overlay" onClick={() => setUnsavedModal({ isOpen: false, targetTab: null })} style={{ zIndex: 9999 }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '450px', padding: '24px' }}>
+            <div className="modal-header" style={{ borderBottom: 'none', padding: '0 0 16px 0' }}>
+              <h2 style={{ color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '18px' }}>
+                <Clock size={20} />
+                Kaydedilmemiş Değişiklikler
+              </h2>
+            </div>
+            <p style={{ color: 'rgba(255,255,255,0.8)', marginBottom: '24px', lineHeight: '1.5', fontSize: '14px' }}>
+              Bu sayfada yaptığınız değişiklikleri kaydetmediniz. Başka bir sekmeye geçmeden önce kaydetmek ister misiniz?
+            </p>
+            <div className="modal-actions" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none', gap: '10px' }}>
+              <button className="btn-secondary" style={{ flex: 1 }} onClick={handleDiscardChanges}>
+                Vazgeç
+              </button>
+              <button
+                className="btn-primary"
+                style={{ flex: 1 }}
+                onClick={handleSaveChangesForTab}
+                disabled={savingWorkingHours || savingGeneralSettings}
+              >
+                {(savingWorkingHours || savingGeneralSettings) ? 'Kaydediliyor...' : 'Ayarları Kaydet'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM CONFIRMATION MODAL */}
+      {confirmDialog.isOpen && (
+        <div className="modal-overlay" onClick={() => setConfirmDialog({ isOpen: false, type: null, id: null, message: '' })} style={{ zIndex: 9999 }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px', textAlign: 'center' }}>
+            <div className="modal-header" style={{ borderBottom: 'none', justifyContent: 'center' }}>
+              <div className="warning-icon" style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
+                <Trash2 size={32} color="#ef4444" />
+              </div>
+            </div>
+            <div className="modal-body" style={{ padding: '10px 20px 30px' }}>
+              <h3 style={{ marginBottom: '15px' }}>Emin misiniz?</h3>
+              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '15px', lineHeight: '1.5' }}>{confirmDialog.message}</p>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '25px' }}>
+                <button
+                  onClick={() => setConfirmDialog({ isOpen: false, type: null, id: null, message: '' })}
+                  className="secondary"
+                  style={{ flex: 1, padding: '12px', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                >
+                  Vazgeç
+                </button>
+                <button
+                  onClick={handleConfirmAction}
+                  className="danger"
+                  style={{ flex: 1, padding: '12px', background: 'rgba(239, 68, 68, 0.9)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}
+                >
+                  Evet, Onayla
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {
         toast && (

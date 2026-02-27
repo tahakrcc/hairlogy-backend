@@ -6,14 +6,9 @@ import { ArrowLeft, Calendar, Clock, User, Phone, Mail, Scissors, ChevronLeft, E
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
 import { useLanguage } from '../contexts/LanguageContext'
-import { bookingsAPI } from '../services/api'
+import { bookingsAPI, barbersAPI, servicesAPI, settingsAPI } from '../services/api'
 import Toast from '../components/Toast'
 import './BookingPage.css'
-
-const barbers = {
-  1: { name: 'Hıdır Yasin Gökçeoğlu', id: 1 },
-  2: { name: 'Emir Gökçeoğlu', id: 2 }
-}
 
 const timeSlots = [
   '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
@@ -59,19 +54,16 @@ const generateDeviceToken = () => {
 
 function BookingPage() {
   const { barberId } = useParams()
+  const isUnifiedMode = !barberId || barberId === 'all'
+  const [selectedBarber, setSelectedBarber] = useState(isUnifiedMode ? null : barberId)
+  const activeBarberId = isUnifiedMode ? 'all' : barberId
+
   const navigate = useNavigate()
   const { language, t } = useLanguage()
-  const barber = barbers[barberId]
+  const [barbers, setBarbers] = useState({})
+  const [barbersLoading, setBarbersLoading] = useState(true)
+  const barber = selectedBarber ? barbers[selectedBarber] : null
 
-  // Hizmetler (süre göstermiyoruz)
-  const services = [
-    { id: 1, name: 'Saç & Sakal + Yıkama + Fön', price: 600 },
-    { id: 2, name: 'Saç Kesimi + Yıkama + Fön', price: 500 },
-    { id: 3, name: 'VIP Hizmet (Cilt bakımı, keratinli saç bakımı maskesi, profesyonel masaj)', price: 2500 },
-    { id: 4, name: 'Profesyonel Buharlı Cilt Bakımı', price: 500 },
-    { id: 5, name: 'Buharlı Keratinli Saç Bakımı Maskesi', price: 500 },
-    { id: 6, name: 'VIP House Tıraş', price: 5000 }
-  ]
 
   // Get date formatting based on language
   const getFormattedDate = (date) => {
@@ -98,36 +90,95 @@ function BookingPage() {
     phone: '',
     email: ''
   })
+  const [services, setServices] = useState([]) // Hizmetler API'den gelecek
+  const [servicesLoading, setServicesLoading] = useState(true)
   const [availableDates, setAvailableDates] = useState([])
   const [availableTimes, setAvailableTimes] = useState([])
   const [bookedTimes, setBookedTimes] = useState([])
+  const [allTimeSlots, setAllTimeSlots] = useState([]) // Dinamik time slots
   const [dateAvailability, setDateAvailability] = useState({}) // Store availability for each date
+  const [barberAvailability, setBarberAvailability] = useState({}) // Unified format
+  const [showBarberSelectModal, setShowBarberSelectModal] = useState(false)
+  const [pendingTimeForBarber, setPendingTimeForBarber] = useState(null)
+
   const [loading, setLoading] = useState(false)
   const [expandedStep, setExpandedStep] = useState(1) // Track which step is expanded
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [bookingDetails, setBookingDetails] = useState(null)
   const [calendarView, setCalendarView] = useState(false) // Toggle between list and calendar view
   const [currentMonth, setCurrentMonth] = useState(new Date()) // Current month for calendar view
+  const [bookingHorizon, setBookingHorizon] = useState(14) // Default 14 days
   const [toast, setToast] = useState(null) // Toast notification state
   const [refreshing, setRefreshing] = useState(false) // Refresh button state
   const [lastRefresh, setLastRefresh] = useState(null) // Last refresh timestamp
 
+  // Load barbers and services from API (PARALLEL)
   useEffect(() => {
-    if (!barber) {
+    let isMounted = true;
+
+    const loadInitialData = async () => {
+      try {
+        const [barbersRes, servicesRes] = await Promise.all([
+          barbersAPI.getAll(),
+          servicesAPI.getAll()
+        ])
+
+        if (!isMounted) return;
+
+        // Process Barbers
+        const barbersMap = {}
+        barbersRes.data.forEach(b => {
+          const key = b.barber_id || b.id
+          barbersMap[key] = { name: b.name, id: key }
+        })
+        if (Object.keys(barbersMap).length > 0) {
+          setBarbers(barbersMap)
+        }
+
+        // Process Services
+        setServices(servicesRes.data)
+
+      } catch (error) {
+        console.error('Failed to load initial booking data:', error)
+      } finally {
+        if (isMounted) {
+          setBarbersLoading(false)
+          setServicesLoading(false)
+        }
+      }
+    }
+
+    loadInitialData()
+
+    return () => { isMounted = false }
+  }, [])
+
+  useEffect(() => {
+    if (barbersLoading) return
+
+    if (!isUnifiedMode && !barbers[barberId]) {
       navigate('/')
       return
     }
 
-    const loadInitialData = () => {
-      // Generate available dates (next 14 days, excluding Sundays)
+    const loadInitialData = async () => {
+      let horizon = 14
+      try {
+        const response = await settingsAPI.getBookingHorizon()
+        if (response.data && response.data.booking_horizon) {
+          horizon = response.data.booking_horizon
+          setBookingHorizon(horizon)
+        }
+      } catch (error) {
+        console.error('Error fetching booking horizon:', error)
+      }
+
+      // Generate available dates 
       const dates = []
       const today = new Date()
-      for (let i = 0; i < 14; i++) {
+      for (let i = 0; i < horizon; i++) {
         const date = addDays(today, i)
-        const dayOfWeek = date.getDay()
-        if (dayOfWeek !== 0) { // Not Sunday
-          dates.push(date)
-        }
+        dates.push(date)
       }
       setAvailableDates(dates)
 
@@ -138,7 +189,7 @@ function BookingPage() {
     // Load initial data only once (no auto-refresh)
     loadInitialData()
     setLastRefresh(new Date())
-  }, [barberId, barber, navigate])
+  }, [activeBarberId, barbersLoading, navigate])
 
   const loadDateAvailability = async (dates) => {
     const availability = {}
@@ -146,7 +197,7 @@ function BookingPage() {
     // Try batch query first (more efficient)
     try {
       const dateStrings = dates.map(date => format(date, 'yyyy-MM-dd'))
-      const response = await bookingsAPI.getAvailableTimesBatch(barberId, dateStrings)
+      const response = await bookingsAPI.getAvailableTimesBatch(activeBarberId, dateStrings)
       const batchData = response.data
 
       dates.forEach(date => {
@@ -154,71 +205,71 @@ function BookingPage() {
         const data = batchData[dateStr]
 
         if (data) {
+          let availableCount = data.availableTimes.length;
+          let baseTotalCount = data.allSlots ? data.allSlots.length : timeSlots.length;
+          let totalCount = baseTotalCount;
+
+          let barberSpecificCounts = {};
+
+          if (isUnifiedMode && data.barberAvailability) {
+            availableCount = 0;
+            // Initialize barber counts to 0
+            Object.keys(barbers).forEach(bId => {
+              barberSpecificCounts[bId] = 0;
+            });
+
+            Object.values(data.barberAvailability).forEach(ids => {
+              availableCount += ids.length;
+              ids.forEach(id => {
+                if (barberSpecificCounts[id] !== undefined) {
+                  barberSpecificCounts[id]++;
+                }
+              });
+            });
+            const activeBarbersCount = Object.keys(barbers).length || 2;
+            totalCount = baseTotalCount * activeBarbersCount;
+          }
+
           if (data.isClosed) {
             availability[dateStr] = {
               available: 0,
-              total: timeSlots.length,
-              booked: timeSlots.length,
-              isClosed: true
+              total: totalCount,
+              booked: totalCount,
+              isClosed: true,
+              barberCounts: {}
             }
           } else {
             availability[dateStr] = {
-              available: data.availableTimes.length,
-              total: timeSlots.length,
-              booked: data.bookedTimes.length
+              available: availableCount,
+              total: totalCount,
+              booked: totalCount - availableCount,
+              barberCounts: barberSpecificCounts
             }
           }
         } else {
           // Fallback
+          const activeBarbersCount = isUnifiedMode ? Math.max(1, Object.keys(barbers).length) : 1;
+          const fallbackTotal = timeSlots.length * activeBarbersCount;
           availability[dateStr] = {
-            available: timeSlots.length,
-            total: timeSlots.length,
-            booked: 0
+            available: fallbackTotal,
+            total: fallbackTotal,
+            booked: 0,
+            barberCounts: {}
           }
         }
       })
     } catch (error) {
-      // Fallback to individual queries if batch fails
-      console.warn('Batch query failed, falling back to individual queries:', error)
-      const promises = dates.map(async (date) => {
+      // If batch fails, don't spam the server with 14 individual requests. Make them assumed available instead or log an error.
+      console.warn('Batch query failed, falling back to empty availability structure:', error)
+      const activeBarbersCount = isUnifiedMode ? Math.max(1, Object.keys(barbers).length) : 1;
+      const fallbackTotal = timeSlots.length * activeBarbersCount;
+      dates.forEach(date => {
         const dateStr = format(date, 'yyyy-MM-dd')
-        try {
-          const response = await bookingsAPI.getAvailableTimes(barberId, dateStr)
-          const { availableTimes: times, bookedTimes: booked, isClosed } = response.data
-
-          if (isClosed) {
-            return {
-              dateStr, data: {
-                available: 0,
-                total: timeSlots.length,
-                booked: timeSlots.length,
-                isClosed: true
-              }
-            }
-          }
-
-          return {
-            dateStr, data: {
-              available: times.length,
-              total: timeSlots.length,
-              booked: booked.length
-            }
-          }
-        } catch (error) {
-          return {
-            dateStr, data: {
-              available: timeSlots.length,
-              total: timeSlots.length,
-              booked: 0
-            }
-          }
-        }
-      })
-
-      const results = await Promise.allSettled(promises)
-      results.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          availability[result.value.dateStr] = result.value.data
+        availability[dateStr] = {
+          available: fallbackTotal,
+          total: fallbackTotal,
+          booked: 0,
+          barberCounts: {}
         }
       })
     }
@@ -232,12 +283,9 @@ function BookingPage() {
     try {
       const dates = []
       const today = new Date()
-      for (let i = 0; i < 14; i++) {
+      for (let i = 0; i < bookingHorizon; i++) {
         const date = addDays(today, i)
-        const dayOfWeek = date.getDay()
-        if (dayOfWeek !== 0) {
-          dates.push(date)
-        }
+        dates.push(date)
       }
       await loadDateAvailability(dates)
 
@@ -262,13 +310,7 @@ function BookingPage() {
     }
   }, [selectedDate, barberId])
 
-  // Load available times when date is selected (no auto-refresh)
-  useEffect(() => {
-    if (selectedDate) {
-      loadAvailableTimes()
-      setBookedTimes([])
-    }
-  }, [selectedDate, barberId])
+
 
   const loadAvailableTimes = async (skipLoading = false) => {
     if (!selectedDate) return
@@ -278,27 +320,41 @@ function BookingPage() {
       setLoading(true)
     }
     try {
-      const response = await bookingsAPI.getAvailableTimes(barberId, dateStr)
-      const { availableTimes: times, bookedTimes: booked, isClosed, reason } = response.data
+      const response = await bookingsAPI.getAvailableTimes(activeBarberId, dateStr)
+      // allSlots now comes from backend
+      const { availableTimes: times, bookedTimes: booked, isClosed, reason, allSlots, barberAvailability: availabilityMap } = response.data
+
+      setBarberAvailability(availabilityMap || {})
 
       // If date is closed, show message and return
       if (isClosed) {
         setAvailableTimes([])
         setBookedTimes([])
+        setAllTimeSlots([])
         if (!skipLoading) {
-          // Show toast notification
-          const Toast = (await import('../components/Toast')).default
-          Toast.error(reason || 'Bu tarih randevuya kapalıdır')
+          setToast({ message: reason || 'Bu tarih randevuya kapalıdır', type: 'error' })
         }
         setLoading(false)
         return
+      }
+
+      // Update all time slots if provided from backend
+      if (allSlots && Array.isArray(allSlots)) {
+        setAllTimeSlots(allSlots)
+      } else {
+        // Fallback for Saturday logic if backend doesn't return allSlots
+        const baseTimeSlots = [...timeSlots]
+        if (selectedDate.getDay() === 6) { // Saturday
+          baseTimeSlots.push('21:00', '22:00')
+        }
+        setAllTimeSlots(baseTimeSlots)
       }
 
       // Ensure we have arrays and normalize
       const timesArray = Array.isArray(times) ? times.map(t => String(t).trim()) : []
       const bookedArray = Array.isArray(booked) ? booked.map(t => String(t).trim()).filter(t => t) : []
 
-      // Filter out past times for today (yemek molası removed)
+      // Filter out past times for today
       const now = new Date()
       const filteredTimes = timesArray.filter(time => {
         // Filter out past times for today
@@ -310,14 +366,12 @@ function BookingPage() {
         return true
       })
 
-      // Calculate booked times from all time slots - if not in availableTimes, it's booked
-      // Extend slots for Saturday
-      const baseTimeSlots = [...timeSlots]
-      if (selectedDate.getDay() === 6) { // Saturday
-        baseTimeSlots.push('21:00', '22:00')
-      }
+      // Calculate booked times
+      // Use the slot list that we just determined (from backend or fallback)
+      const currentSlots = allSlots && Array.isArray(allSlots) ? allSlots :
+        (selectedDate.getDay() === 6 ? [...timeSlots, '21:00', '22:00'] : [...timeSlots])
 
-      const allTimeSlotsNormalized = baseTimeSlots.map(t => String(t).trim())
+      const allTimeSlotsNormalized = currentSlots.map(t => String(t).trim())
       const availableTimesNormalized = filteredTimes.map(t => String(t).trim())
       const calculatedBooked = allTimeSlotsNormalized.filter(
         slot => !availableTimesNormalized.includes(slot)
@@ -329,13 +383,7 @@ function BookingPage() {
       setAvailableTimes(filteredTimes)
       setBookedTimes(finalBooked)
 
-      // Debug log
-      console.log('📅 Date:', dateStr)
-      console.log('✅ Available times:', availableTimesNormalized)
-      console.log('❌ Booked times from API:', bookedArray)
-      console.log('🔍 Calculated booked (not in available):', calculatedBooked)
-      console.log('🎯 Final booked times:', finalBooked)
-      console.log('📊 Response data:', response.data)
+
 
       // Don't reset selectedTime on periodic refresh
       if (!skipLoading) {
@@ -348,6 +396,7 @@ function BookingPage() {
       }
       // Fallback to all time slots if API fails
       setAvailableTimes(timeSlots.map(t => t.trim()))
+      setAllTimeSlots(timeSlots)
       setBookedTimes([])
     } finally {
       if (!skipLoading) {
@@ -402,10 +451,12 @@ function BookingPage() {
       setSelectedDate(null)
       setSelectedTime(null)
       setSelectedService(null)
+      if (isUnifiedMode) setSelectedBarber(null)
       setExpandedStep(1)
     } else if (step === 2) {
       setSelectedTime(null)
       setSelectedService(null)
+      if (isUnifiedMode) setSelectedBarber(null)
       setExpandedStep(2)
     } else if (step === 3) {
       setSelectedService(null)
@@ -421,6 +472,7 @@ function BookingPage() {
       // Keep date selected, just expand
     } else if (step === 2) {
       // Keep date, expand time selection
+      if (isUnifiedMode) setSelectedBarber(null)
     } else if (step === 3) {
       // Keep date and time, expand service selection
     }
@@ -463,8 +515,8 @@ function BookingPage() {
       const deviceToken = getOrCreateDeviceToken()
 
       const bookingResponse = await bookingsAPI.create({
-        barberId: parseInt(barberId),
-        barberName: barber.name,
+        barberId: parseInt(selectedBarber || barberId),
+        barberName: barber ? barber.name : '',
         serviceName: selectedService.name,
         servicePrice: selectedService.price,
         customerName: formData.name,
@@ -514,12 +566,9 @@ function BookingPage() {
         // Reload availability for all dates
         const dates = []
         const today = new Date()
-        for (let i = 0; i < 14; i++) {
+        for (let i = 0; i < bookingHorizon; i++) {
           const date = addDays(today, i)
-          const dayOfWeek = date.getDay()
-          if (dayOfWeek !== 0) {
-            dates.push(date)
-          }
+          dates.push(date)
         }
         await loadDateAvailability(dates)
 
@@ -620,8 +669,8 @@ function BookingPage() {
     }
   }
 
-  if (!barber) return null
-
+  if (!isUnifiedMode && !barber) return null
+  if (Object.keys(barbers).length === 0) return null
   return (
     <div className="booking-page versace-vertical-border versace-vertical-border-right">
       <header className="booking-header">
@@ -630,7 +679,7 @@ function BookingPage() {
             <ArrowLeft size={20} />
             {t('booking.back')}
           </button>
-          <h1>{barber.name} - {t('booking.bookAppointment')}</h1>
+          <h1>{barber ? barber.name : 'Randevu'} - {t('booking.bookAppointment')}</h1>
           <button
             className="refresh-btn"
             onClick={handleRefresh}
@@ -734,20 +783,22 @@ function BookingPage() {
                           const isSunday = date.getDay() === 0
                           const availability = getDateAvailability(date)
                           const availabilityPercent = (availability.available / availability.total) * 100
-                          const isFull = availability.available === 0
+                          const isFull = availability.available === 0 || availability.isClosed
                           const isAlmostFull = availabilityPercent < 30
-                          const canSelect = isAvailable && !isPastDate && !isFull && !isSunday && isCurrentMonth
+                          const isClosed = availability.isClosed
+                          // Pazar kontrolünü kaldırdık, artık isClosed kontrolü yapılıyor
+                          const canSelect = isAvailable && !isPastDate && !isFull && isCurrentMonth && !isClosed
 
                           return (
                             <button
                               key={index}
-                              className={`calendar-day ${isSelected ? 'selected' : ''} ${!isCurrentMonth ? 'other-month' : ''} ${isPastDate ? 'past' : ''} ${isFull ? 'full' : ''} ${isAlmostFull ? 'almost-full' : ''} ${isSunday ? 'sunday' : ''} ${canSelect ? 'available' : ''}`}
+                              className={`calendar-day ${isSelected ? 'selected' : ''} ${!isCurrentMonth ? 'other-month' : ''} ${isPastDate ? 'past' : ''} ${isFull ? 'full' : ''} ${isAlmostFull ? 'almost-full' : ''} ${isClosed ? 'closed' : ''} ${canSelect ? 'available' : ''} ${isSunday ? 'sunday' : ''}`}
                               onClick={() => canSelect && handleDateSelect(date)}
                               disabled={!canSelect}
-                              title={isCurrentMonth && !isSunday ? `${format(date, 'dd MMMM yyyy')} - ${availability.available} müsait` : ''}
+                              title={isCurrentMonth && !isClosed ? `${format(date, 'dd MMMM yyyy')} - ${availability.available} müsait` : ''}
                             >
                               <span className="calendar-day-number">{date.getDate()}</span>
-                              {isCurrentMonth && !isSunday && !isPastDate && (
+                              {isCurrentMonth && !isClosed && !isPastDate && (
                                 <div className="calendar-day-indicator">
                                   {isFull ? (
                                     <span className="indicator-dot full"></span>
@@ -798,7 +849,20 @@ function BookingPage() {
                                 ) : isAlmostFull ? (
                                   <span className="availability-badge almost-badge">{t('booking.step1.almostFull')}</span>
                                 ) : (
-                                  <span className="availability-badge available-badge">{availability.available} {t('booking.step1.available')}</span>
+                                  isUnifiedMode && availability.barberCounts && Object.keys(availability.barberCounts).length > 0 ? (
+                                    <div className="unified-availability-badges">
+                                      {Object.entries(availability.barberCounts).map(([bId, count]) => {
+                                        if (!barbers[bId]) return null;
+                                        return (
+                                          <span key={bId} className="availability-badge available-badge" style={{ fontSize: '0.7rem', padding: '2px 6px', marginBottom: '2px' }}>
+                                            {barbers[bId].name.split(' ')[0]}: {count}
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <span className="availability-badge available-badge">{availability.available} {t('booking.step1.available')}</span>
+                                  )
                                 )}
                               </div>
                             )}
@@ -852,10 +916,14 @@ function BookingPage() {
                     ) : (
                       <div className="times-grid">
                         {(() => {
-                          const activeTimeSlots = [...timeSlots]
-                          if (selectedDate && selectedDate.getDay() === 6) {
-                            activeTimeSlots.push('21:00', '22:00')
+                          // Use allTimeSlots from backend. If empty, show nothing or loading.
+                          // Fallback to empty array to ensure we don't show wrong times.
+                          const activeTimeSlots = allTimeSlots.length > 0 ? allTimeSlots : [];
+
+                          if (activeTimeSlots.length === 0 && !loading) {
+                            return <div className="no-times">Müsait saat bulunamadı.</div>;
                           }
+
                           return activeTimeSlots.map((time, index) => {
                             // Normalize time strings for comparison
                             const normalizedTime = String(time).trim()
@@ -869,13 +937,13 @@ function BookingPage() {
                             // Break time checks removed
                             const isBreakTime = false
                             const isBreakTimeSlot = false
-                            const isSeventeen = time === '17:00'
 
-                            // A time is available if it's in availableTimes array and not break time slot
-                            // 17:00 özel durum: backend listesinde eksik olsa da, booked değilse açık say.
-                            const isAvailable = ((normalizedAvailable.includes(normalizedTime) || isSeventeen) && !isBreakTimeSlot)
-                            // A time is booked if it's explicitly in bookedTimes array OR not available (after availability calc), excluding break slot
+                            // A time is available if it's in availableTimes array
+                            const isAvailable = normalizedAvailable.includes(normalizedTime) && !isBreakTimeSlot
+
+                            // A time is booked if it's explicitly in bookedTimes array OR not available, excluding break slot
                             const isBooked = (normalizedBooked.includes(normalizedTime) || (!isAvailable && !isBreakTimeSlot)) && !isBreakTime
+
                             const isSelected = selectedTime === time
 
                             // Check if time is in the past for today
@@ -887,6 +955,12 @@ function BookingPage() {
                               isPastTime = isBefore(slotDateTime, now)
                             }
 
+                            // Unified Mode Availability
+                            const currentAvailableBarberIds = barberAvailability[normalizedTime] || []
+                            const hasMultipleBarbers = isUnifiedMode && !selectedBarber && isAvailable && currentAvailableBarberIds.length > 1
+                            const hasSingleBarber = isUnifiedMode && !selectedBarber && isAvailable && currentAvailableBarberIds.length === 1
+                            const singleBarberName = hasSingleBarber ? barbers[currentAvailableBarberIds[0]]?.name : ''
+
                             // A time is disabled if it's break time, booked, past, or not available
                             // Priority: break time slot > booked > past > not available
                             const isDisabled = isBreakTimeSlot || isBooked || isPastTime || !isAvailable
@@ -894,20 +968,32 @@ function BookingPage() {
                             return (
                               <button
                                 key={index}
-                                className={`time-slot ${isSelected ? 'selected' : ''} ${isBooked ? 'booked' : ''} ${isPastTime ? 'past' : ''} ${isBreakTime ? 'break-time' : ''} ${isBreakTimeSlot && !isBreakTime ? 'break-time-slot' : ''} ${isAvailable && !isPastTime && !isBooked && !isBreakTimeSlot ? 'available' : ''} ${isDisabled ? 'disabled-slot' : ''}`}
+                                className={`time-slot ${isSelected ? 'selected' : ''} ${isBooked ? 'booked' : ''} ${isPastTime ? 'past' : ''} ${isBreakTime ? 'break-time' : ''} ${isAvailable && !isPastTime && !isBooked ? 'available' : ''} ${isDisabled ? 'disabled-slot' : ''} ${hasMultipleBarbers ? 'multiple-barbers' : ''} ${hasSingleBarber ? 'single-barber' : ''}`}
                                 onClick={(e) => {
                                   e.preventDefault()
                                   e.stopPropagation()
                                   if (!isDisabled) {
-                                    handleTimeSelect(time)
+                                    if (isUnifiedMode && !selectedBarber) {
+                                      if (currentAvailableBarberIds.length === 1) {
+                                        setSelectedBarber(currentAvailableBarberIds[0])
+                                        handleTimeSelect(time)
+                                      } else if (currentAvailableBarberIds.length > 1) {
+                                        setPendingTimeForBarber(time)
+                                        setShowBarberSelectModal(true)
+                                      } else {
+                                        handleTimeSelect(time)
+                                      }
+                                    } else {
+                                      handleTimeSelect(time)
+                                    }
                                   } else {
                                     // Show feedback when trying to click disabled slot
                                     if (isBreakTimeSlot) {
                                       setToast({ message: 'Bu saat yemek molası', type: 'info' })
                                     } else if (isBooked) {
-                                      setToast({ message: 'Bu saat zaten dolu', type: 'warning' })
+                                      setToast({ message: 'Bu saat şuan dolu', type: 'warning' })
                                     } else if (isPastTime) {
-                                      setToast({ message: 'Bu saat geçmişte', type: 'warning' })
+                                      setToast({ message: 'Bu saat geçmişte kaldı', type: 'warning' })
                                     }
                                   }
                                 }}
@@ -916,6 +1002,11 @@ function BookingPage() {
                                 title={isBreakTimeSlot ? (isBreakTime ? 'Yemek Molası' : 'Yemek molası saati') : isBooked ? t('booking.step1.booked') : isPastTime ? t('booking.step1.past') : !isAvailable ? 'Bu saat müsait değil' : ''}
                               >
                                 <span className="time-slot-time">{time}</span>
+                                {isUnifiedMode && !selectedBarber && isAvailable && !isPastTime && !isBooked && (
+                                  <span className="unified-availability-label">
+                                    {hasMultipleBarbers ? 'İki Uzman da Boş' : (hasSingleBarber ? `Sadece ${singleBarberName} Boş` : '')}
+                                  </span>
+                                )}
                                 {isBreakTime && <span className="time-slot-label">Yemek Molası</span>}
                                 {isBooked && !isPastTime && !isBreakTime && <span className="booked-label">{t('booking.step1.booked')}</span>}
                                 {isPastTime && !isBreakTime && <span className="past-label">{t('booking.step1.past')}</span>}
@@ -969,19 +1060,30 @@ function BookingPage() {
                     </div>
                   ) : selectedTime ? (
                     <div className="services-list">
-                      {services.map(service => (
-                        <button
-                          key={service.id}
-                          className={`service-option ${selectedService?.id === service.id ? 'selected' : ''}`}
-                          onClick={() => handleServiceSelect(service)}
-                        >
-                          <Scissors size={20} />
-                          <div className="service-info">
-                            <span className="service-name">{service.name}</span>
-                            <span className="service-details">{service.price}₺</span>
-                          </div>
-                        </button>
-                      ))}
+                      {servicesLoading ? (
+                        <div className="loading-state">
+                          <RefreshCw size={24} className="spinning" />
+                          <p>Hizmetler yükleniyor...</p>
+                        </div>
+                      ) : services.length > 0 ? (
+                        services.map(service => (
+                          <button
+                            key={service.id}
+                            className={`service-option ${selectedService?.id === service.id ? 'selected' : ''}`}
+                            onClick={() => handleServiceSelect(service)}
+                          >
+                            <Scissors size={20} />
+                            <div className="service-info">
+                              <span className="service-name">{service.name}</span>
+                              <span className="service-details">{service.price}₺</span>
+                            </div>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="empty-state">
+                          <p>Aktif hizmet bulunamadı.</p>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <p className="step-info">{t('booking.step3.selectTimeFirst')}</p>
@@ -1070,7 +1172,7 @@ function BookingPage() {
               <div className="summary-content">
                 <div className="summary-item">
                   <span className="summary-label">{t('booking.success.summary.barber')}</span>
-                  <span className="summary-value">{barber.name}</span>
+                  <span className="summary-value">{barber ? barber.name : '-'}</span>
                 </div>
                 {selectedDate && (
                   <div className="summary-item">
@@ -1166,6 +1268,44 @@ function BookingPage() {
                 {t('booking.success.close')}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Barber Select Modal for Unified Booking */}
+      {showBarberSelectModal && (
+        <div className="modal-overlay" onClick={() => {
+          setShowBarberSelectModal(false)
+          setPendingTimeForBarber(null)
+        }}>
+          <div className="modal-content barber-select-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header-elegant">
+              <h3>{t('booking.step2.title')}</h3>
+              <p>{pendingTimeForBarber} saati için uzmanlarımız müsaittir.<br />Lütfen işlemi yapacak uzmanı seçiniz.</p>
+            </div>
+            <div className="barber-selection-grid">
+              {(barberAvailability[pendingTimeForBarber] || []).map(bId => {
+                const b = barbers[bId]
+                if (!b) return null
+                return (
+                  <button key={bId} className="barber-select-card" onClick={() => {
+                    setSelectedBarber(bId)
+                    handleTimeSelect(pendingTimeForBarber)
+                    setShowBarberSelectModal(false)
+                    setPendingTimeForBarber(null)
+                  }}>
+                    <strong className="barber-select-name">{b.name}</strong>
+                    <span className="barber-select-action">Seç ve İlerle</span>
+                  </button>
+                )
+              })}
+            </div>
+            <button className="golden-button w-100 mt-4" onClick={() => {
+              setShowBarberSelectModal(false)
+              setPendingTimeForBarber(null)
+            }}>
+              <span className="golden-text">İptal</span>
+            </button>
           </div>
         </div>
       )}

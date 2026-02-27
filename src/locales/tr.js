@@ -44,7 +44,7 @@ export default {
 
   // Footer
   footer: {
-    copyright: '© 2024 Hairlogy Yasin Premium. Tüm hakları saklıdır.'
+    copyright: '© 2025 Hairlogy Yasin Premium. Tüm hakları saklıdır.'
   },
 
   // Social Media

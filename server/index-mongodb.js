@@ -28,7 +28,11 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    console.error('FATAL: JWT_SECRET environment variable is not set!');
+    process.exit(1);
+}
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/kuafor';
 const MJ_APIKEY_PUBLIC = process.env.MJ_APIKEY_PUBLIC;
 const MJ_APIKEY_PRIVATE = process.env.MJ_APIKEY_PRIVATE;
@@ -109,61 +113,102 @@ async function initializeDatabase() {
                 {
                     barber_id: 1,
                     name: 'Hıdır Yasin Gökçeoğlu',
-                    experience: '15+ Yıl Deneyim',
+                    experience: '7 Yıl Deneyim',
                     specialty: 'Klasik & Modern Kesimler',
-                    image_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
+                    image_url: '/yasin-new.jpg',
+                    social_links: {
+                        instagram: 'https://www.instagram.com/hairology_yasin?igsh=eWZlN3c4emF2bTRu&utm_source=qr',
+                        tiktok: 'https://www.tiktok.com/@hidir_yasin?_r=1&_t=ZS-9281Gzsz8VQ',
+                        youtube: 'https://youtube.com/@hdrgokceoglu5095?si=lL8J2m-HA_r6tK1H'
+                    },
                     active: true
                 },
                 {
                     barber_id: 2,
                     name: 'Emir Gökçeoğlu',
-                    experience: '10+ Yıl Deneyim',
+                    experience: '2 Yıl Deneyim',
                     specialty: 'Fade & Sakal Tasarımı',
-                    image_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop',
+                    image_url: '/WhatsApp%20Image%202025-12-09%20at%2012.00.59.jpeg',
+                    social_links: {
+                        instagram: 'https://www.instagram.com/emirgokceoglu1?igsh=YjBjYm1tYWVheTR4',
+                        tiktok: 'https://www.tiktok.com/@emirgokceoglu?_r=1&_t=ZS-9284iyXxzcq'
+                    },
                     active: true
                 }
             ];
             await Barber.insertMany(defaultBarbers);
             console.log('Default barbers created');
+        } else {
+            // Update existing barbers with social_links if missing
+            const barbersToUpdate = await Barber.find({ social_links: { $exists: false } });
+            const socialLinksMap = {
+                1: {
+                    instagram: 'https://www.instagram.com/hairology_yasin?igsh=eWZlN3c4emF2bTRu&utm_source=qr',
+                    tiktok: 'https://www.tiktok.com/@hidir_yasin?_r=1&_t=ZS-9281Gzsz8VQ',
+                    youtube: 'https://youtube.com/@hdrgokceoglu5095?si=lL8J2m-HA_r6tK1H'
+                },
+                2: {
+                    instagram: 'https://www.instagram.com/emirgokceoglu1?igsh=YjBjYm1tYWVheTR4',
+                    tiktok: 'https://www.tiktok.com/@emirgokceoglu?_r=1&_t=ZS-9284iyXxzcq'
+                }
+            };
+            const imageMap = {
+                1: '/yasin-new.jpg',
+                2: '/WhatsApp%20Image%202025-12-09%20at%2012.00.59.jpeg'
+            };
+            for (const barber of barbersToUpdate) {
+                const updates = {};
+                if (socialLinksMap[barber.barber_id]) {
+                    updates.social_links = socialLinksMap[barber.barber_id];
+                }
+                if (barber.image_url && barber.image_url.includes('unsplash') && imageMap[barber.barber_id]) {
+                    updates.image_url = imageMap[barber.barber_id];
+                }
+                if (Object.keys(updates).length > 0) {
+                    await Barber.updateOne({ _id: barber._id }, { $set: updates });
+                }
+            }
         }
 
         // Default Services
         const servicesCount = await Service.countDocuments();
         if (servicesCount === 0) {
             const defaultServices = [
-                { name: 'Saç Kesimi', duration: 30, price: 150, active: true },
-                { name: 'Saç ve Sakal', duration: 45, price: 200, active: true },
-                { name: 'Sakal', duration: 20, price: 100, active: true },
-                { name: 'Çocuk Tıraşı', duration: 25, price: 120, active: true },
-                { name: 'Bakım/Mask', duration: 30, price: 180, active: true }
+                { name: 'VIP Hizmet (Cilt bakımı, keratinli saç bakımı maskesi, profesyonel masaj)', duration: 90, price: 2500, active: true },
+                { name: 'Saç Kesimi + Yıkama + Fön', duration: 45, price: 500, active: true },
+                { name: 'Profesyonel Buharlı Cilt Bakımı', duration: 45, price: 500, active: true },
+                { name: 'VIP House Tıraş', duration: 120, price: 5000, active: true },
+                { name: 'Buharlı Keratinli Saç Bakım Maskesi', duration: 45, price: 500, active: true }
             ];
             await Service.insertMany(defaultServices);
             console.log('Default services created');
         }
 
-        // Admin Users (yasin, emir, admin)
+        // Admin Users (yasin, emir, admin) - Only create if not exists
         const admins = [
             { username: 'yasin', password: 'Yasin@2025!', barber_id: 1 },
             { username: 'emir', password: 'Emir@2025!', barber_id: 2 },
             { username: 'admin', password: 'admin123' }
         ];
 
+        let createdCount = 0;
         for (const admin of admins) {
             const existingUser = await AdminUser.findOne({ username: admin.username });
-            // Update if user doesn't exist OR if we want to enforce password reset (optional, but good for now)
-            // To avoid re-hashing every restart, we could check, but for now enforcing is safer for the user request
-            const hashedPassword = bcrypt.hashSync(admin.password, 10);
-
-            await AdminUser.findOneAndUpdate(
-                { username: admin.username },
-                {
+            // Only create if user doesn't exist - don't reset passwords on restart
+            if (!existingUser) {
+                const hashedPassword = bcrypt.hashSync(admin.password, 10);
+                await AdminUser.create({
+                    username: admin.username.toLowerCase(),
                     password: hashedPassword,
                     barber_id: admin.barber_id
-                },
-                { upsert: true }
-            );
+                });
+                createdCount++;
+                console.log(`Admin user created: ${admin.username}`);
+            }
         }
-        console.log('Admin users initialized/updated');
+        if (createdCount === 0) {
+            console.log('Admin users already exist, skipping creation');
+        }
 
         // Default System Settings
         const maintenanceSetting = await SystemSetting.findOne({ key: 'maintenance_mode' });
@@ -201,8 +246,40 @@ const verifyToken = (req, res, next) => {
     });
 };
 
+// ============ CACHE (IN-MEMORY) ============
+// Cache system settings to prevent hitting DB on every calendar date
+let systemSettingsCache = {};
+let systemSettingsCacheTime = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+const getCachedSetting = async (key, defaultVal) => {
+    const now = Date.now();
+    // Refresh cache if expired
+    if (!systemSettingsCache[key] || (now - systemSettingsCacheTime) > CACHE_TTL) {
+        const setting = await SystemSetting.findOne({ key });
+        if (setting) {
+            systemSettingsCache[key] = setting.value;
+            systemSettingsCacheTime = now;
+        } else {
+            return defaultVal;
+        }
+    }
+    return systemSettingsCache[key];
+};
+
 // ============ PUBLIC ROUTES ============
 
+// Add a simple speed measuring middleware
+app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        if (duration > 2000 && req.url.startsWith('/api')) { // Slower than 2000ms
+            console.warn(`[SLOW API] ${req.method} ${req.originalUrl} took ${duration}ms`);
+        }
+    });
+    next();
+});
 // Track site visit
 app.post('/api/visit', async (req, res) => {
     try {
@@ -254,60 +331,171 @@ app.get('/api/available-times', async (req, res) => {
     try {
         const { barberId, date } = req.query;
 
-        if (!barberId || !date) {
-            return res.status(400).json({ error: 'barberId and date are required' });
+        if (!date) {
+            return res.status(400).json({ error: 'date is required' });
         }
 
-        // Check closed dates
-        const checkDate = new Date(date);
+        const isAllBarbers = !barberId || barberId === 'all';
+        let targetBarbers = [];
 
-        // Safer day detection: Parse YYYY-MM-DD manually to avoid any timezone ambiguity
+        if (isAllBarbers) {
+            const barbers = await Barber.find({ active: true }).select('barber_id name');
+            targetBarbers = barbers.flatMap(b => [Number(b.barber_id), String(b.barber_id)]);
+        } else {
+            targetBarbers = [Number(barberId), String(barberId)];
+        }
+
+        const numericTargetBarbers = targetBarbers.map(Number).filter(n => !isNaN(n));
+
         const [y, m, d] = date.split('-').map(Number);
-        // Create UTC date: month is 0-indexed
         const utcDate = new Date(Date.UTC(y, m - 1, d));
         const dayOfWeek = utcDate.getUTCDay();
 
-        const closedDate = await ClosedDate.findOne({
+        const closedDates = await ClosedDate.find({
             start_date: { $lte: date },
-            end_date: { $gte: date },
-            $or: [
-                { barber_id: null },
-                { barber_id: { $exists: false } }, // Old records
-                { barber_id: Number(barberId) },
-                { barber_id: String(barberId) }
-            ]
+            end_date: { $gte: date }
         });
 
-        if (closedDate) {
+        // Global full day closure
+        const globalFullDayClosure = closedDates.find(c =>
+            (!c.barber_id || c.barber_id === 'undefined') && ((!c.start_time && !c.end_time) || c.start_time === '' || c.end_time === '')
+        );
+
+        if (globalFullDayClosure) {
             return res.json({
                 availableTimes: [],
                 bookedTimes: [],
                 isClosed: true,
-                reason: closedDate.reason || 'Tatil günü'
+                reason: globalFullDayClosure.reason || 'Tatil günü',
+                barberAvailability: {}
             });
         }
 
         const bookings = await Booking.find({
-            barber_id: { $in: [Number(barberId), String(barberId)] },
+            barber_id: { $in: targetBarbers },
             appointment_date: date,
             status: { $ne: 'cancelled' }
         });
 
-        const bookedTimes = bookings.map(b => b.appointment_time.trim());
+        // Get working hours from Cache
+        const cachedWorkingHours = await getCachedSetting('working_hours', null);
+        const workingHours = cachedWorkingHours || {
+            weekday: { start: '09:00', end: '20:00' },
+            saturday: { start: '09:00', end: '22:00' },
+            sunday: { closed: true },
+            slotDuration: 60
+        };
 
-        // Time slots logic
-        const allTimeSlots = [
-            '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
+        const sundaySettings = workingHours.sunday || {};
+        const isSundayClosed = String(sundaySettings.closed) === 'true';
+
+        if (dayOfWeek === 0 && isSundayClosed) {
+            return res.json({
+                availableTimes: [],
+                bookedTimes: [],
+                isClosed: true,
+                reason: 'Pazar günü kapalı',
+                barberAvailability: {}
+            });
+        }
+
+        let startHour, endHour;
+        if (dayOfWeek === 0) {
+            startHour = parseInt(workingHours.sunday?.start?.split(':')[0]) || 10;
+            endHour = parseInt(workingHours.sunday?.end?.split(':')[0]) || 18;
+        } else if (dayOfWeek === 6) {
+            startHour = parseInt(workingHours.saturday?.start?.split(':')[0]) || 9;
+            endHour = parseInt(workingHours.saturday?.end?.split(':')[0]) || 22;
+        } else {
+            startHour = parseInt(workingHours.weekday?.start?.split(':')[0]) || 9;
+            endHour = parseInt(workingHours.weekday?.end?.split(':')[0]) || 20;
+        }
+
+        const slotDuration = workingHours.slotDuration || 60;
+        const allTimeSlots = [];
+        for (let hour = startHour; hour < endHour; hour++) {
+            if (slotDuration === 30) {
+                allTimeSlots.push(`${hour.toString().padStart(2, '0')}:00`, `${hour.toString().padStart(2, '0')}:30`);
+            } else if (slotDuration === 90) {
+                if ((hour - startHour) % 1.5 === 0 || allTimeSlots.length === 0) {
+                    allTimeSlots.push(`${hour.toString().padStart(2, '0')}:00`);
+                } else {
+                    allTimeSlots.push(`${hour.toString().padStart(2, '0')}:30`);
+                }
+            } else {
+                allTimeSlots.push(`${hour.toString().padStart(2, '0')}:00`);
+            }
+        }
+
+        let dayBreaks = [];
+        if (dayOfWeek === 0) dayBreaks = workingHours.sunday?.breaks || [];
+        else if (dayOfWeek === 6) dayBreaks = workingHours.saturday?.breaks || [];
+        else dayBreaks = workingHours.weekday?.breaks || [];
+
+        const globalBlockedRanges = [
+            ...dayBreaks,
+            ...closedDates.filter(c => (!c.barber_id || c.barber_id === 'undefined') && c.start_time && c.end_time && c.start_time !== '' && c.end_time !== '')
+                .map(c => ({ start: c.start_time, end: c.end_time }))
         ];
-        // If it's Saturday (dayOfWeek === 6), add 21:00 and 22:00
-        if (dayOfWeek === 6) allTimeSlots.push('21:00', '22:00');
 
-        // const breakTimeSlots = ['16:00'];
-        const availableTimes = allTimeSlots.filter(time =>
-            !bookedTimes.includes(time)
-        );
+        const barberAvailability = {};
+        const finalAvailableTimes = [];
+        const allBookedTimes = [];
 
-        res.json({ availableTimes, bookedTimes });
+        allTimeSlots.forEach(time => {
+            // Check if globally blocked
+            let isGloballyBlocked = false;
+            for (let range of globalBlockedRanges) {
+                if (range.start && range.end && time >= range.start && time < range.end) {
+                    isGloballyBlocked = true;
+                    break;
+                }
+            }
+
+            if (isGloballyBlocked) return;
+
+            const availableBarbersForSlot = [];
+
+            numericTargetBarbers.forEach(bId => {
+                const barberFullDayClosure = closedDates.find(c =>
+                    (String(c.barber_id) === String(bId)) && ((!c.start_time && !c.end_time) || c.start_time === '' || c.end_time === '')
+                );
+                if (barberFullDayClosure) return;
+
+                const barberBlockedRanges = closedDates.filter(c =>
+                    (String(c.barber_id) === String(bId)) && c.start_time && c.end_time && c.start_time !== '' && c.end_time !== ''
+                ).map(c => ({ start: c.start_time, end: c.end_time }));
+
+                let isBarberBlocked = false;
+                for (let range of barberBlockedRanges) {
+                    if (time >= range.start && time < range.end) {
+                        isBarberBlocked = true; break;
+                    }
+                }
+                if (isBarberBlocked) return;
+
+                const isBooked = bookings.some(b => b.appointment_date === date && b.appointment_time.trim() === time && String(b.barber_id) === String(bId));
+                if (isBooked) return;
+
+                if (!availableBarbersForSlot.includes(Number(bId))) {
+                    availableBarbersForSlot.push(Number(bId));
+                }
+            });
+
+            if (availableBarbersForSlot.length > 0) {
+                finalAvailableTimes.push(time);
+                barberAvailability[time] = availableBarbersForSlot;
+            } else {
+                allBookedTimes.push(time);
+            }
+        });
+
+        res.json({
+            availableTimes: finalAvailableTimes,
+            bookedTimes: allBookedTimes,
+            allSlots: allTimeSlots,
+            barberAvailability
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -317,53 +505,173 @@ app.get('/api/available-times', async (req, res) => {
 app.get('/api/available-times-batch', async (req, res) => {
     try {
         const { barberId, dates } = req.query;
-        if (!barberId || !dates) return res.status(400).json({ error: 'Missing parameters' });
+        if (!dates) return res.status(400).json({ error: 'Missing parameters' });
+
+        const isAllBarbers = !barberId || barberId === 'all';
+        let targetBarbers = [];
+
+        if (isAllBarbers) {
+            const barbers = await Barber.find({ active: true }).select('barber_id name');
+            targetBarbers = barbers.flatMap(b => [Number(b.barber_id), String(b.barber_id)]);
+        } else {
+            targetBarbers = [Number(barberId), String(barberId)];
+        }
+
+        const numericTargetBarbers = targetBarbers.map(Number).filter(n => !isNaN(n));
 
         const dateList = dates.split(',');
         const results = {};
 
-        const closedDates = await ClosedDate.find({
-            $or: dateList.map(date => ({
-                start_date: { $lte: date },
-                end_date: { $gte: date }
-            }))
-        });
+        // Get working hours from Cache
+        const cachedWorkingHoursBatch = await getCachedSetting('working_hours', null);
+        const workingHours = cachedWorkingHoursBatch || {
+            weekday: { start: '09:00', end: '20:00' },
+            saturday: { start: '09:00', end: '22:00' },
+            sunday: { closed: true },
+            slotDuration: 60
+        };
 
-        // Filter closed dates relevant to this barber (or global)
-        const relevantClosedDates = closedDates.filter(cd => {
-            // If no barber_id or null, it's global
-            if (!cd.barber_id) return true;
-            // If matches barberId (check both string/number)
-            return String(cd.barber_id) === String(barberId);
+        const sundaySettings = workingHours.sunday || {};
+        const isSundayClosed = String(sundaySettings.closed) === 'true';
+
+        const minDate = dateList.reduce((min, d) => d < min ? d : min, dateList[0]);
+        const maxDate = dateList.reduce((max, d) => d > max ? d : max, dateList[0]);
+
+        const closedDates = await ClosedDate.find({
+            start_date: { $lte: maxDate },
+            end_date: { $gte: minDate }
         });
 
         const bookings = await Booking.find({
-            barber_id: { $in: [Number(barberId), String(barberId)] },
+            barber_id: { $in: targetBarbers },
             appointment_date: { $in: dateList },
             status: { $ne: 'cancelled' }
         });
 
         for (const date of dateList) {
-            const isClosed = relevantClosedDates.some(cd => date >= cd.start_date && date <= cd.end_date);
-            if (isClosed) {
-                results[date] = { availableTimes: [], bookedTimes: [], isClosed: true };
-                continue;
-            }
-
-            const bookedTimes = bookings
-                .filter(b => b.appointment_date === date)
-                .map(b => b.appointment_time.trim());
-
-            const allTimeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
-
-            // Safer day detection
             const [y, m, d] = date.split('-').map(Number);
             const dayOfWeek = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 
-            if (dayOfWeek === 6) allTimeSlots.push('21:00', '22:00');
+            if (dayOfWeek === 0 && isSundayClosed) {
+                results[date] = { availableTimes: [], bookedTimes: [], isClosed: true, reason: 'Pazar günü kapalı', barberAvailability: {} };
+                continue;
+            }
 
-            const availableTimes = allTimeSlots.filter(time => !bookedTimes.includes(time));
-            results[date] = { availableTimes, bookedTimes, isClosed: false };
+            const relevantClosedDates = closedDates.filter(cd => date >= cd.start_date && date <= cd.end_date);
+
+            // Global full day closure
+            const globalFullDayClosure = relevantClosedDates.find(c =>
+                (!c.barber_id || c.barber_id === 'undefined') && ((!c.start_time && !c.end_time) || c.start_time === '' || c.end_time === '')
+            );
+
+            if (globalFullDayClosure) {
+                results[date] = { availableTimes: [], bookedTimes: [], isClosed: true, reason: globalFullDayClosure.reason || 'Kapalı', barberAvailability: {} };
+                continue;
+            }
+
+            let startHour, endHour;
+            const h = workingHours;
+            if (dayOfWeek === 0) {
+                startHour = parseInt(h.sunday?.start?.split(':')[0]) || 10;
+                endHour = parseInt(h.sunday?.end?.split(':')[0]) || 18;
+            } else if (dayOfWeek === 6) {
+                startHour = parseInt(h.saturday?.start?.split(':')[0]) || 9;
+                endHour = parseInt(h.saturday?.end?.split(':')[0]) || 22;
+            } else {
+                startHour = parseInt(h.weekday?.start?.split(':')[0]) || 9;
+                endHour = parseInt(h.weekday?.end?.split(':')[0]) || 20;
+            }
+
+            const slotDuration = h.slotDuration || 60;
+            const allTimeSlots = [];
+            for (let hour = startHour; hour < endHour; hour++) {
+                if (slotDuration === 30) {
+                    allTimeSlots.push(`${hour.toString().padStart(2, '0')}:00`, `${hour.toString().padStart(2, '0')}:30`);
+                } else if (slotDuration === 90) {
+                    if ((hour - startHour) % 1.5 === 0 || allTimeSlots.length === 0) {
+                        allTimeSlots.push(`${hour.toString().padStart(2, '0')}:00`);
+                    } else {
+                        allTimeSlots.push(`${hour.toString().padStart(2, '0')}:30`);
+                    }
+                } else {
+                    allTimeSlots.push(`${hour.toString().padStart(2, '0')}:00`);
+                }
+            }
+
+            let dayBreaks = [];
+            if (dayOfWeek === 0) dayBreaks = h.sunday?.breaks || [];
+            else if (dayOfWeek === 6) dayBreaks = h.saturday?.breaks || [];
+            else dayBreaks = h.weekday?.breaks || [];
+
+            const globalBlockedRanges = [
+                ...dayBreaks,
+                ...relevantClosedDates.filter(c => (!c.barber_id || c.barber_id === 'undefined') && c.start_time && c.end_time && c.start_time !== '' && c.end_time !== '')
+                    .map(c => ({ start: c.start_time, end: c.end_time }))
+            ];
+
+            const barberAvailability = {};
+            const finalAvailableTimes = [];
+            const allBookedTimes = [];
+
+            allTimeSlots.forEach(time => {
+                // Check if globally blocked
+                let isGloballyBlocked = false;
+                for (let range of globalBlockedRanges) {
+                    if (range.start && range.end && time >= range.start && time < range.end) {
+                        isGloballyBlocked = true;
+                        break;
+                    }
+                }
+
+                if (isGloballyBlocked) return;
+
+                const availableBarbersForSlot = [];
+
+                numericTargetBarbers.forEach(bId => {
+                    // Check if this barber has a full day closure
+                    const barberFullDayClosure = relevantClosedDates.find(c =>
+                        (String(c.barber_id) === String(bId)) && ((!c.start_time && !c.end_time) || c.start_time === '' || c.end_time === '')
+                    );
+                    if (barberFullDayClosure) return; // Barber is off today
+
+                    // Check if this barber has a partial block
+                    const barberBlockedRanges = relevantClosedDates.filter(c =>
+                        (String(c.barber_id) === String(bId)) && c.start_time && c.end_time && c.start_time !== '' && c.end_time !== ''
+                    ).map(c => ({ start: c.start_time, end: c.end_time }));
+
+                    let isBarberBlocked = false;
+                    for (let range of barberBlockedRanges) {
+                        if (time >= range.start && time < range.end) {
+                            isBarberBlocked = true; break;
+                        }
+                    }
+                    if (isBarberBlocked) return;
+
+                    // Check if this barber is booked at this time
+                    const isBooked = bookings.some(b => b.appointment_date === date && b.appointment_time.trim() === time && String(b.barber_id) === String(bId));
+                    if (isBooked) return;
+
+                    if (!availableBarbersForSlot.includes(Number(bId))) {
+                        availableBarbersForSlot.push(Number(bId));
+                    }
+                });
+
+                if (availableBarbersForSlot.length > 0) {
+                    finalAvailableTimes.push(time);
+                    barberAvailability[time] = availableBarbersForSlot;
+                } else {
+                    // Everyone is booked or blocked
+                    allBookedTimes.push(time);
+                }
+            });
+
+            results[date] = {
+                availableTimes: finalAvailableTimes,
+                bookedTimes: allBookedTimes,
+                isClosed: false,
+                allSlots: allTimeSlots,
+                barberAvailability
+            };
         }
 
         res.json(results);
@@ -391,11 +699,14 @@ app.post('/api/bookings', async (req, res) => {
             if (tokenDoc) {
                 const hoursSinceUpdate = (now - tokenDoc.updated_at) / (1000 * 60 * 60);
                 if (hoursSinceUpdate >= 3) {
+                    // Reset after 3 hours - explicitly update timestamp
                     tokenDoc.booking_count = 1;
+                    tokenDoc.updated_at = now;
                 } else if (tokenDoc.booking_count >= 2) {
                     return res.status(429).json({ error: 'Maksimum randevu hakkı doldu.' });
                 } else {
                     tokenDoc.booking_count += 1;
+                    tokenDoc.updated_at = now;
                 }
                 await tokenDoc.save();
             } else {
@@ -480,6 +791,10 @@ app.post('/api/bookings', async (req, res) => {
 
         res.status(201).json({ id: newBooking._id, message: 'Success' });
     } catch (error) {
+        // Handle duplicate key error (race condition - same slot booked simultaneously)
+        if (error.code === 11000) {
+            return res.status(400).json({ error: 'Bu saat dolu. Lütfen başka bir saat seçin.' });
+        }
         res.status(500).json({ error: error.message });
     }
 });
@@ -489,21 +804,19 @@ app.post('/api/bookings', async (req, res) => {
 app.post('/api/admin/login', async (req, res) => {
     try {
         const { username, password } = req.body;
-        console.log(`[Login Attempt] Username: ${username}`);
-        const user = await AdminUser.findOne({ username: new RegExp(`^${username}$`, 'i') });
+        const user = await AdminUser.findOne({ username: username.toLowerCase() });
 
         if (!user) {
-            console.log(`[Login Failed] User not found: ${username}`);
-            // Return 404 for user not found to distinguish, or keep 401 with specific message
+            // User not found
             // Using 401 with specific message is safer generally, but user asked for specific feedback
             return res.status(401).json({ error: 'Kullanıcı bulunamadı' });
         }
 
         const isPasswordValid = bcrypt.compareSync(password, user.password);
-        console.log(`[Login Debug] User found: ${user.username}, Password match: ${isPasswordValid}`);
+
 
         if (!isPasswordValid) {
-            console.log(`[Login Failed] Incorrect password for user: ${username}`);
+
             return res.status(401).json({ error: 'Şifre hatalı' });
         }
 
@@ -535,33 +848,44 @@ app.get('/api/admin/bookings', verifyToken, async (req, res) => {
             filter.barber_id = { $in: [Number(userBarberId), String(userBarberId)] };
         }
 
-        const bookings = await Booking.find(filter).sort({ appointment_date: -1, appointment_time: -1 });
+        const bookings = await Booking.find(filter).sort({ appointment_date: -1, appointment_time: -1 }).limit(1000);
 
-        // Auto-complete past bookings
+        // Auto-complete ONLY past confirmed bookings, don't loop through all history
         const now = new Date();
+        const pastDateStr = now.toISOString().split('T')[0];
+        const [hour, min] = [now.getHours(), now.getMinutes()];
+        const pastTimeStr = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
+
+        // Find only those that need updating
+        const bookingsToComplete = bookings.filter(b =>
+            b.status === 'confirmed' &&
+            (b.appointment_date < pastDateStr || (b.appointment_date === pastDateStr && b.appointment_time < pastTimeStr))
+        );
+
         const updates = [];
-        bookings.forEach(b => {
-            if (b.status === 'confirmed') {
-                const [year, month, day] = b.appointment_date.split('-').map(Number);
-                const [hour, min] = b.appointment_time.split(':').map(Number);
-                const appDate = new Date(year, month - 1, day, hour, min);
-                if (appDate < now) {
-                    b.status = 'completed';
-                    updates.push(Booking.updateOne({ _id: b._id }, { status: 'completed' }));
-                    if (b.service_price) {
-                        updates.push(RevenueHistory.create({
-                            booking_id: b._id,
+        bookingsToComplete.forEach(b => {
+            b.status = 'completed'; // Update for current request response
+            updates.push(Booking.updateOne({ _id: b._id }, { status: 'completed' }));
+
+            if (b.service_price) {
+                // Check if revenue already exists
+                updates.push((async () => {
+                    const existingRevenue = await RevenueHistory.findOne({ booking_id: b._id.toString() });
+                    if (!existingRevenue) {
+                        await RevenueHistory.create({
+                            booking_id: b._id.toString(),
                             barber_id: b.barber_id,
                             service_price: b.service_price,
                             appointment_date: b.appointment_date,
                             appointment_time: b.appointment_time,
                             customer_name: b.customer_name,
                             service_name: b.service_name
-                        }));
+                        });
                     }
-                }
+                })());
             }
         });
+
         if (updates.length > 0) await Promise.all(updates);
 
         res.json(bookings.map(b => ({ id: b._id, ...b.toObject() })));
@@ -592,15 +916,19 @@ app.patch('/api/admin/bookings/:id', verifyToken, async (req, res) => {
 
         if (status === 'completed' && oldStatus !== 'completed' && oldStatus !== 'cancelled') {
             if (booking.service_price) {
-                await RevenueHistory.create({
-                    booking_id: booking._id,
-                    barber_id: booking.barber_id,
-                    service_price: booking.service_price,
-                    appointment_date: booking.appointment_date,
-                    appointment_time: booking.appointment_time,
-                    customer_name: booking.customer_name,
-                    service_name: booking.service_name
-                });
+                // Check if revenue already exists to prevent duplicates
+                const existingRevenue = await RevenueHistory.findOne({ booking_id: booking._id.toString() });
+                if (!existingRevenue) {
+                    await RevenueHistory.create({
+                        booking_id: booking._id.toString(),
+                        barber_id: booking.barber_id,
+                        service_price: booking.service_price,
+                        appointment_date: booking.appointment_date,
+                        appointment_time: booking.appointment_time,
+                        customer_name: booking.customer_name,
+                        service_name: booking.service_name
+                    });
+                }
             }
         }
 
@@ -628,19 +956,48 @@ app.get('/api/admin/stats', verifyToken, async (req, res) => {
         const filter = {};
         if (userBarberId && showAll !== 'true') filter.barber_id = userBarberId;
 
-        const totalBookings = await Booking.countDocuments(filter);
-        const bookingsByStatus = await Booking.aggregate([
-            { $match: filter },
-            { $group: { _id: '$status', count: { $sum: 1 } } }
+        // Run all heavy queries in parallel to drastically reduce 11s load time
+        const [
+            totalBookings,
+            bookingsByStatus,
+            todayBookings,
+            revenueRecords,
+            trends,
+            bookingTrends,
+            siteVisits
+        ] = await Promise.all([
+            Booking.countDocuments(filter),
+            Booking.aggregate([
+                { $match: filter },
+                { $group: { _id: '$status', count: { $sum: 1 } } }
+            ]),
+            Booking.countDocuments({ ...filter, appointment_date: new Date().toISOString().split('T')[0] }),
+            RevenueHistory.find(filter),
+            RevenueHistory.aggregate([
+                { $match: filter },
+                {
+                    $group: {
+                        _id: { date: '$appointment_date', barberId: '$barber_id' },
+                        revenue: { $sum: '$service_price' },
+                        count: { $sum: 1 }
+                    }
+                },
+                { $sort: { '_id.date': 1 } }
+            ]),
+            Booking.aggregate([
+                { $match: filter },
+                {
+                    $group: {
+                        _id: '$appointment_date',
+                        count: { $sum: 1 }
+                    }
+                },
+                { $sort: { _id: 1 } }
+            ]),
+            DailyStats.find().sort({ date: -1 }).limit(90)
         ]);
 
-        const today = new Date().toISOString().split('T')[0];
-        const todayBookings = await Booking.countDocuments({ ...filter, appointment_date: today });
-
-        const revenueRecords = await RevenueHistory.find(filter);
-
-        // Filter out non-ObjectId strings to prevent CastError in $nin query
-        // Some revenue records might reference old Firebase string IDs
+        // Additional calculations that depend on the first wave
         const revenueBookingIds = revenueRecords
             .map(r => r.booking_id)
             .filter(id => mongoose.Types.ObjectId.isValid(id));
@@ -653,35 +1010,6 @@ app.get('/api/admin/stats', verifyToken, async (req, res) => {
 
         const totalRevenue = revenueRecords.reduce((sum, r) => sum + (r.service_price || 0), 0) +
             activeBookings.reduce((sum, b) => sum + (b.service_price || 0), 0);
-
-        const trends = await RevenueHistory.aggregate([
-            { $match: filter },
-            {
-                $group: {
-                    _id: { date: '$appointment_date', barberId: '$barber_id' },
-                    revenue: { $sum: '$service_price' },
-                    count: { $sum: 1 }
-                }
-            },
-            { $sort: { '_id.date': 1 } }
-        ]);
-
-        // Aggregate everyday bookings (Customer count)
-        const bookingTrends = await Booking.aggregate([
-            { $match: filter },
-            {
-                $group: {
-                    _id: '$appointment_date',
-                    count: { $sum: 1 }
-                }
-            },
-            { $sort: { _id: 1 } }
-        ]);
-
-        // Get daily site visits
-        // If specific date filter is applied we should filter, but usually trends is for a range
-        // For simplicity, we fetch all relevant daily stats or last 90 days
-        const siteVisits = await DailyStats.find().sort({ date: -1 }).limit(90);
 
         res.json({
             totalBookings,
@@ -708,10 +1036,12 @@ app.get('/api/admin/closed-dates', verifyToken, async (req, res) => {
 
 app.post('/api/admin/closed-dates', verifyToken, async (req, res) => {
     try {
-        const { start_date, end_date, reason, barberId } = req.body;
+        const { start_date, end_date, start_time, end_time, reason, barberId } = req.body;
         const newDate = await ClosedDate.create({
             start_date,
             end_date,
+            start_time,
+            end_time,
             reason,
             barber_id: barberId || null, // If empty/null, it's for all
             created_by: req.user.username
@@ -731,7 +1061,143 @@ app.delete('/api/admin/closed-dates/:id', verifyToken, async (req, res) => {
     }
 });
 
+// Toggle single date (for calendar click)
+app.post('/api/admin/toggle-date', verifyToken, async (req, res) => {
+    try {
+        const { date, barberId, reason } = req.body;
+        if (!date) return res.status(400).json({ error: 'Date is required' });
 
+        // Check if this date is already closed
+        const existing = await ClosedDate.findOne({
+            start_date: { $lte: date },
+            end_date: { $gte: date },
+            ...(barberId ? { barber_id: { $in: [Number(barberId), String(barberId), null] } } : { barber_id: null })
+        });
+
+        if (existing) {
+            // If exact single-day match, delete it (toggle off)
+            if (existing.start_date === date && existing.end_date === date) {
+                await ClosedDate.findByIdAndDelete(existing._id);
+                return res.json({ message: 'Date opened', isClosed: false });
+            } else {
+                // Part of a range - inform user
+                return res.status(400).json({
+                    error: 'Bu tarih bir aralığın parçası. Önce aralığı silin.',
+                    range: { start: existing.start_date, end: existing.end_date }
+                });
+            }
+        } else {
+            // Create new single-day closure
+            await ClosedDate.create({
+                start_date: date,
+                end_date: date,
+                reason: reason || 'Kapalı',
+                barber_id: barberId || null,
+                created_by: req.user.username
+            });
+            return res.json({ message: 'Date closed', isClosed: true });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============ SERVICES CRUD ============
+
+// Get all services (including inactive for admin)
+app.get('/api/admin/services', verifyToken, async (req, res) => {
+    try {
+        const services = await Service.find().sort({ name: 1 });
+        res.json(services.map(s => ({ id: s._id, ...s.toObject() })));
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Create service
+app.post('/api/admin/services', verifyToken, async (req, res) => {
+    try {
+        const { name, duration, price, active } = req.body;
+        if (!name) return res.status(400).json({ error: 'Service name is required' });
+
+        const newService = await Service.create({
+            name: name.trim(),
+            duration: duration || 30,
+            price: price || 0,
+            active: active !== false
+        });
+        res.status(201).json({ id: newService._id, message: 'Service created' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update service
+app.put('/api/admin/services/:id', verifyToken, async (req, res) => {
+    try {
+        const { name, duration, price, active } = req.body;
+        const service = await Service.findById(req.params.id);
+        if (!service) return res.status(404).json({ error: 'Service not found' });
+
+        if (name !== undefined) service.name = name.trim();
+        if (duration !== undefined) service.duration = duration;
+        if (price !== undefined) service.price = price;
+        if (active !== undefined) service.active = active;
+
+        await service.save();
+        res.json({ message: 'Service updated' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Delete service
+app.delete('/api/admin/services/:id', verifyToken, async (req, res) => {
+    try {
+        await Service.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Service deleted' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============ WORKING HOURS MANAGEMENT ============
+
+// Get working hours settings
+app.get('/api/admin/settings/working-hours', verifyToken, async (req, res) => {
+    try {
+        const setting = await SystemSetting.findOne({ key: 'working_hours' });
+        const defaults = {
+            weekday: { start: '09:00', end: '20:00' },
+            saturday: { start: '09:00', end: '22:00' },
+            sunday: { closed: true },
+            slotDuration: 60 // minutes
+        };
+        res.json(setting?.value || defaults);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update working hours settings
+app.put('/api/admin/settings/working-hours', verifyToken, async (req, res) => {
+    try {
+        const { weekday, saturday, sunday, slotDuration } = req.body;
+
+        await SystemSetting.findOneAndUpdate(
+            { key: 'working_hours' },
+            {
+                value: { weekday, saturday, sunday, slotDuration },
+                updated_at: Date.now()
+            },
+            { upsert: true }
+        );
+        systemSettingsCacheTime = 0; // Force cache clear on next read
+        res.json({ message: 'Working hours updated' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // Admin Control: Toggle Maintenance Mode
 app.post('/api/admin/settings/maintenance', verifyToken, async (req, res) => {
@@ -750,13 +1216,167 @@ app.post('/api/admin/settings/maintenance', verifyToken, async (req, res) => {
     }
 });
 
+// ============ GENERAL SETTINGS ============
+
+// Get all general settings (admin)
+app.get('/api/admin/settings/general', verifyToken, async (req, res) => {
+    try {
+        const keys = ['booking_horizon', 'auto_confirm'];
+        const settings = await SystemSetting.find({ key: { $in: keys } });
+        const result = {};
+        const defaults = {
+            booking_horizon: 14,
+            auto_confirm: true
+        };
+        keys.forEach(k => {
+            const found = settings.find(s => s.key === k);
+            result[k] = found ? found.value : defaults[k];
+        });
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update general settings (admin)
+app.put('/api/admin/settings/general', verifyToken, async (req, res) => {
+    try {
+        const allowedKeys = ['booking_horizon', 'auto_confirm'];
+        const updates = req.body;
+
+        for (const [key, value] of Object.entries(updates)) {
+            if (allowedKeys.includes(key)) {
+                await SystemSetting.findOneAndUpdate(
+                    { key },
+                    { value, updated_at: Date.now() },
+                    { upsert: true }
+                );
+            }
+        }
+        res.json({ message: 'Settings updated' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Public: Get booking horizon (no auth needed)
+app.get('/api/settings/booking-horizon', async (req, res) => {
+    try {
+        const setting = await SystemSetting.findOne({ key: 'booking_horizon' });
+        res.json({ booking_horizon: setting?.value || 14 });
+    } catch (error) {
+        res.json({ booking_horizon: 14 });
+    }
+});
+
+// Send reminder email for a booking
+app.post('/api/admin/bookings/:id/reminder', verifyToken, async (req, res) => {
+    try {
+        const booking = await Booking.findById(req.params.id);
+        if (!booking) return res.status(404).json({ error: 'Randevu bulunamadı' });
+
+        if (!booking.customer_email) {
+            return res.status(400).json({ error: 'Bu randevuda email adresi yok' });
+        }
+
+        if (!mailjet) {
+            return res.status(500).json({ error: 'Email servisi yapılandırılmamış' });
+        }
+
+        await mailjet.post('send', { 'version': 'v3.1' }).request({
+            "Messages": [{
+                "From": { "Email": SENDER_EMAIL, "Name": "Hairlogy Yasin Premium" },
+                "To": [{ "Email": booking.customer_email, "Name": booking.customer_name }],
+                "Subject": "Randevu Hatırlatması - Hairlogy Yasin Premium",
+                "HTMLPart": `
+                    <h3>Sayın ${booking.customer_name},</h3>
+                    <p>Randevunuzu hatırlatmak istiyoruz.</p>
+                    <ul>
+                        <li><strong>Berber:</strong> ${booking.barber_name}</li>
+                        <li><strong>Hizmet:</strong> ${booking.service_name}</li>
+                        <li><strong>Tarih:</strong> ${booking.appointment_date}</li>
+                        <li><strong>Saat:</strong> ${booking.appointment_time}</li>
+                    </ul>
+                    <p>Sizi bekliyoruz!</p>
+                `
+            }]
+        });
+
+        booking.reminder_sent = true;
+        booking.reminder_sent_at = new Date();
+        await booking.save();
+
+        res.json({ message: 'Hatırlatma emaili gönderildi' });
+    } catch (error) {
+        console.error('Reminder email error:', error.message);
+        res.status(500).json({ error: 'Email gönderilemedi: ' + error.message });
+    }
+});
+
+// Send daily report email
+app.post('/api/admin/daily-report', verifyToken, async (req, res) => {
+    try {
+        const { date } = req.body;
+        if (!date) return res.status(400).json({ error: 'Tarih gereklidir' });
+
+        if (!mailjet) {
+            return res.status(500).json({ error: 'Email servisi yapılandırılmamış' });
+        }
+
+        const bookings = await Booking.find({ appointment_date: date }).sort({ appointment_time: 1 });
+
+        let tableRows = '';
+        let totalRevenue = 0;
+        bookings.forEach(b => {
+            tableRows += `<tr>
+                <td>${b.appointment_time}</td>
+                <td>${b.customer_name}</td>
+                <td>${b.customer_phone}</td>
+                <td>${b.barber_name || '-'}</td>
+                <td>${b.service_name}</td>
+                <td>${b.service_price || 0}₺</td>
+                <td>${b.status}</td>
+            </tr>`;
+            if (b.status !== 'cancelled') totalRevenue += (b.service_price || 0);
+        });
+
+        await mailjet.post('send', { 'version': 'v3.1' }).request({
+            "Messages": [{
+                "From": { "Email": SENDER_EMAIL, "Name": "Hairlogy Sistem" },
+                "To": [{ "Email": SENDER_EMAIL, "Name": "Yönetici" }],
+                "Subject": `Günlük Rapor - ${date} (${bookings.length} randevu)`,
+                "HTMLPart": `
+                    <h2>Günlük Rapor: ${date}</h2>
+                    <p><strong>Toplam Randevu:</strong> ${bookings.length}</p>
+                    <p><strong>Toplam Gelir:</strong> ${totalRevenue}₺</p>
+                    <table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%">
+                        <tr style="background:#333;color:#fff">
+                            <th>Saat</th><th>Müşteri</th><th>Telefon</th><th>Berber</th><th>Hizmet</th><th>Fiyat</th><th>Durum</th>
+                        </tr>
+                        ${tableRows}
+                    </table>
+                `
+            }]
+        });
+
+        res.json({ message: 'Rapor gönderildi', totalBookings: bookings.length, totalRevenue });
+    } catch (error) {
+        console.error('Daily report error:', error.message);
+        res.status(500).json({ error: 'Rapor gönderilemedi: ' + error.message });
+    }
+});
+
 // Cleanup logic
 async function cleanupOldBookings() {
     try {
         const twoWeeksAgo = new Date();
         twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
         const dateStr = twoWeeksAgo.toISOString().split('T')[0];
-        const result = await Booking.deleteMany({ appointment_date: { $lt: dateStr } });
+        // Only delete completed or cancelled old bookings
+        const result = await Booking.deleteMany({
+            appointment_date: { $lt: dateStr },
+            status: { $in: ['completed', 'cancelled'] }
+        });
         if (result.deletedCount > 0) console.log(`Cleaned up ${result.deletedCount} old bookings`);
     } catch (err) {
         console.error('Cleanup error:', err);

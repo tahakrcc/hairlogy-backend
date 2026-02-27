@@ -22,7 +22,7 @@ const MaintenancePage = () => {
                 <div className="contact-section">
                     <p>Randevu almak için bize WhatsApp üzerinden ulaşabilirsiniz:</p>
                     <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="whatsapp-button">
-                        <MessageCircle /> WhatsApp ile Randevu Al
+                        <MessageCircle size={28} color="#ffffff" strokeWidth={2.5} style={{ marginRight: '8px' }} /> WhatsApp ile Randevu Al
                     </a>
                 </div>
 
@@ -34,7 +34,7 @@ const MaintenancePage = () => {
 
             {/* Floating WhatsApp Button */}
             <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="whatsapp-float-button" aria-label="WhatsApp">
-                <MessageCircle size={32} />
+                <MessageCircle size={32} color="#ffffff" strokeWidth={2.5} style={{ display: 'block' }} />
             </a>
         </div>
     );

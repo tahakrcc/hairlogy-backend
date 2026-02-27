@@ -6,6 +6,11 @@ const barberSchema = new mongoose.Schema({
     experience: String,
     specialty: String,
     image_url: String,
+    social_links: {
+        instagram: String,
+        tiktok: String,
+        youtube: String
+    },
     active: { type: Boolean, default: true }
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
@@ -43,13 +48,30 @@ const bookingSchema = new mongoose.Schema({
     reminder_sent_at: Date
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
+// Unique compound index to prevent race conditions - same barber/date/time can't have multiple active bookings
+bookingSchema.index(
+    { barber_id: 1, appointment_date: 1, appointment_time: 1 },
+    {
+        unique: true,
+        partialFilterExpression: { status: { $ne: 'cancelled' } }
+    }
+);
+
+// Performance index for batch queries
+bookingSchema.index({ appointment_date: 1, barber_id: 1, status: 1 });
+
 const closedDateSchema = new mongoose.Schema({
     start_date: { type: String, required: true }, // YYYY-MM-DD
     end_date: { type: String, required: true }, // YYYY-MM-DD
+    start_time: { type: String, required: false }, // HH:mm (optional)
+    end_time: { type: String, required: false }, // HH:mm (optional)
     reason: String,
     barber_id: mongoose.Schema.Types.Mixed, // Optional: specific barber or null for all
     created_by: String
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
+
+// Performance index for searching closed dates within a range
+closedDateSchema.index({ start_date: 1, end_date: 1, barber_id: 1 });
 
 const deviceTokenSchema = new mongoose.Schema({
     token: { type: String, required: true, unique: true },
@@ -70,6 +92,8 @@ const systemSettingSchema = new mongoose.Schema({
     key: { type: String, required: true, unique: true },
     value: mongoose.Schema.Types.Mixed
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
+
+// Fast lookup for settings (Implicitly indexed due to unique: true on key)
 
 export const Barber = mongoose.model('Barber', barberSchema);
 export const Service = mongoose.model('Service', serviceSchema);

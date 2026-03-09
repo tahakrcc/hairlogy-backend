@@ -2484,7 +2484,8 @@ select option:focus {
 
   .closed-ranges-section .refresh-btn,
   .closed-card .refresh-btn,
-  .services-management-card .refresh-btn {
+  .services-management-card .refresh-btn,
+  .special-hours-section .refresh-btn {
     display: inline-flex;
   }
 }

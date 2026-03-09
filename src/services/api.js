@@ -110,6 +110,9 @@ export const adminAPI = {
   // Working Hours
   getWorkingHours: () => api.get('/admin/settings/working-hours'),
   updateWorkingHours: (data) => api.put('/admin/settings/working-hours', data),
+  getSpecialHours: () => api.get('/admin/special-hours'),
+  createSpecialHour: (data) => api.post('/admin/special-hours', data),
+  deleteSpecialHour: (id) => api.delete(`/admin/special-hours/${id}`),
   // Maintenance Settings
   toggleMaintenanceMode: (value) => api.post('/admin/settings/maintenance', { value }),
   // General Settings

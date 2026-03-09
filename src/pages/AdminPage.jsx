@@ -92,9 +92,23 @@ function AdminPage() {
   const [originalGeneralSettings, setOriginalGeneralSettings] = useState(null)
   const [unsavedModal, setUnsavedModal] = useState({ isOpen: false, targetTab: null })
 
+  // New states for Special Working Hours
+  const [specialHours, setSpecialHours] = useState([])
+  const [showSpecialHourModal, setShowSpecialHourModal] = useState(false)
+  const [specialHourForm, setSpecialHourForm] = useState({
+    date: '',
+    start: '09:00',
+    end: '20:00',
+    breaks: [],
+    is_closed: false,
+    barber_id: null
+  })
+  const [savingSpecialHours, setSavingSpecialHours] = useState(false)
+
   const horizonStart = startOfDay(new Date())
-  const horizonEnd = startOfDay(addDays(horizonStart, 13)) // 14 günlük görünüm
-  const horizonDays = Array.from({ length: 14 }).map((_, idx) => addDays(horizonStart, idx))
+  const horizonCount = parseInt(generalSettings.booking_horizon) || 14
+  const horizonEnd = startOfDay(addDays(horizonStart, horizonCount - 1))
+  const horizonDays = Array.from({ length: horizonCount }).map((_, idx) => addDays(horizonStart, idx))
 
   useEffect(() => {
     checkAuth()
@@ -113,6 +127,7 @@ function AdminPage() {
       loadAllServices()
       loadWorkingHours()
       loadGeneralSettings()
+      loadSpecialHours()
     })
 
     const interval = setInterval(() => {
@@ -1036,6 +1051,64 @@ function AdminPage() {
     }
   }
 
+  // ============ NEW: Special Hours Management ============
+  const loadSpecialHours = async () => {
+    try {
+      const response = await adminAPI.getSpecialHours()
+      setSpecialHours(response.data || [])
+    } catch (error) {
+      console.error('Load special hours error:', error)
+    }
+  }
+
+  const handleAddSpecialBreak = () => {
+    setSpecialHourForm(prev => ({
+      ...prev,
+      breaks: [...prev.breaks, { start: '12:00', end: '13:00' }]
+    }))
+  }
+
+  const handleUpdateSpecialBreak = (index, field, value) => {
+    setSpecialHourForm(prev => {
+      const newBreaks = [...prev.breaks]
+      newBreaks[index] = { ...newBreaks[index], [field]: value }
+      return { ...prev, breaks: newBreaks }
+    })
+  }
+
+  const handleRemoveSpecialBreak = (index) => {
+    setSpecialHourForm(prev => ({
+      ...prev,
+      breaks: prev.breaks.filter((_, i) => i !== index)
+    }))
+  }
+
+  const handleSaveSpecialHour = async (e) => {
+    e.preventDefault()
+    setSavingSpecialHours(true)
+    try {
+      await adminAPI.createSpecialHour(specialHourForm)
+      setToast({ message: 'Özel çalışma saati kaydedildi', type: 'success' })
+      setShowSpecialHourModal(false)
+      loadSpecialHours()
+    } catch (error) {
+      setToast({ message: 'Kaydedilirken hata oluştu', type: 'error' })
+    } finally {
+      setSavingSpecialHours(false)
+    }
+  }
+
+  const handleDeleteSpecialHour = async (id) => {
+    if (!window.confirm('Bu özel çalışma saatini silmek istediğinize emin misiniz?')) return
+    try {
+      await adminAPI.deleteSpecialHour(id)
+      setToast({ message: 'Özel çalışma saati silindi', type: 'success' })
+      loadSpecialHours()
+    } catch (error) {
+      setToast({ message: 'Silinirken hata oluştu', type: 'error' })
+    }
+  }
+
   const handleDiscardChanges = () => {
     if (activeTab === 'hours') {
       if (originalWorkingHours) setWorkingHours(JSON.parse(JSON.stringify(originalWorkingHours)))
@@ -1284,7 +1357,7 @@ function AdminPage() {
               <section className="card calendar-card">
                 <div className="calendar-header">
                   <div>
-                    <p className="muted">14 günlük görünüm</p>
+                    <p className="muted">{horizonCount} günlük görünüm</p>
                     <strong>{format(horizonStart, 'd MMM', { locale: tr })} - {format(horizonEnd, 'd MMM', { locale: tr })}</strong>
                   </div>
                 </div>
@@ -1597,6 +1670,59 @@ function AdminPage() {
                   >
                     {savingWorkingHours ? 'Kaydediliyor...' : 'Kaydet'}
                   </button>
+                </div>
+
+                <div className="special-hours-section">
+                  <div className="section-header">
+                    <div>
+                      <h4 style={{ color: '#c8a45a', marginBottom: '4px' }}>Özel Gün Saatleri</h4>
+                      <p className="muted" style={{ fontSize: '12px' }}>Belirli bir tarihe özel saat ve mola belirleyin (Genel ayarları ezer)</p>
+                    </div>
+                    <button className="refresh-btn" style={{ padding: '6px 12px', fontSize: '13px' }} onClick={() => {
+                      setSpecialHourForm({
+                        date: format(new Date(), 'yyyy-MM-dd'),
+                        start: '09:00',
+                        end: '20:00',
+                        breaks: [],
+                        is_closed: false,
+                        barber_id: null
+                      })
+                      setShowSpecialHourModal(true)
+                    }}>
+                      <Plus size={14} />
+                      Özel Saat Ekle
+                    </button>
+                  </div>
+
+                  <div className="special-hours-list" style={{ marginTop: '15px', display: 'grid', gap: '10px' }}>
+                    {specialHours.length === 0 ? (
+                      <div className="empty small" style={{ padding: '20px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', textAlign: 'center', color: '#888', fontSize: '13px' }}>Henüz özel bir çalışma saati belirlenmemiş</div>
+                    ) : (
+                      specialHours.map(sh => (
+                        <div key={sh.id} className={`special-hour-item ${sh.is_closed ? 'closed' : ''}`} style={{ background: 'rgba(255,255,255,0.05)', padding: '12px 15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div className="special-hour-info">
+                            <strong style={{ display: 'block', fontSize: '14px' }}>{format(parseISO(sh.date), 'd MMMM yyyy, EEEE', { locale: tr })}</strong>
+                            <div className="special-hour-meta" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
+                              {sh.is_closed ? (
+                                <span className="status-badge error">Tam Gün Kapalı</span>
+                              ) : (
+                                <>
+                                  <Clock size={14} />
+                                  <span>{sh.start} - {sh.end}</span>
+                                  {sh.breaks?.length > 0 && (
+                                    <span style={{ color: '#c8a45a' }}>({sh.breaks.length} Mola)</span>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <button className="icon-btn danger" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none', padding: '8px', borderRadius: '6px' }} onClick={() => handleDeleteSpecialHour(sh.id)}>
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             </section>
@@ -2146,9 +2272,131 @@ function AdminPage() {
           />
         )
       }
+      {/* Special Working Hour Modal */}
+      {showSpecialHourModal && (
+        <div className="modal-overlay" onClick={() => setShowSpecialHourModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Özel Çalışma Saati Belirle</h2>
+              <button className="modal-close" onClick={() => setShowSpecialHourModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveSpecialHour} className="service-form">
+              <div className="form-group">
+                <label>Tarih *</label>
+                <input
+                  type="date"
+                  required
+                  value={specialHourForm.date}
+                  onChange={(e) => setSpecialHourForm({ ...specialHourForm, date: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="toggle-label" style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '8px 0' }}>
+                  <div
+                    className="toggle-switch"
+                    onClick={(e) => { e.preventDefault(); setSpecialHourForm({ ...specialHourForm, is_closed: !specialHourForm.is_closed }) }}
+                    style={{
+                      width: '48px',
+                      height: '26px',
+                      borderRadius: '13px',
+                      background: specialHourForm.is_closed ? '#ef4444' : 'linear-gradient(135deg, #c8a45a, #e0c068)',
+                      position: 'relative',
+                      transition: 'background 0.3s',
+                      flexShrink: 0,
+                      border: specialHourForm.is_closed ? '1px solid #ef4444' : '1px solid #c8a45a'
+                    }}
+                  >
+                    <div style={{
+                      width: '20px',
+                      height: '20px',
+                      borderRadius: '50%',
+                      background: '#fff',
+                      position: 'absolute',
+                      top: '2px',
+                      left: specialHourForm.is_closed ? '25px' : '3px',
+                      transition: 'left 0.3s',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                    }} />
+                  </div>
+                  <span style={{ color: specialHourForm.is_closed ? '#ef4444' : '#c8a45a', fontSize: '14px', transition: 'color 0.3s' }}>
+                    {specialHourForm.is_closed ? 'Tam Gün Kapalı' : 'Açık (Özel Saatli)'}
+                  </span>
+                </label>
+              </div>
+
+              {!specialHourForm.is_closed && (
+                <>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Başlangıç *</label>
+                      <input
+                        type="time"
+                        required
+                        value={specialHourForm.start}
+                        onChange={(e) => setSpecialHourForm({ ...specialHourForm, start: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Bitiş *</label>
+                      <input
+                        type="time"
+                        required
+                        value={specialHourForm.end}
+                        onChange={(e) => setSpecialHourForm({ ...specialHourForm, end: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="breaks-config" style={{ marginTop: '10px' }}>
+                    <div className="section-header" style={{ marginBottom: '10px' }}>
+                      <h5 style={{ margin: 0 }}>Molalar</h5>
+                      <button type="button" className="refresh-btn small" onClick={handleAddSpecialBreak}>
+                        <Plus size={14} /> Ekle
+                      </button>
+                    </div>
+                    {specialHourForm.breaks.map((brk, idx) => (
+                      <div key={idx} className="form-row" style={{ alignItems: 'flex-end', marginBottom: '8px' }}>
+                        <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                          <input
+                            type="time"
+                            value={brk.start}
+                            onChange={(e) => handleUpdateSpecialBreak(idx, 'start', e.target.value)}
+                          />
+                        </div>
+                        <span style={{ padding: '0 8px', color: 'rgba(255,255,255,0.5)', lineHeight: '42px' }}>-</span>
+                        <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                          <input
+                            type="time"
+                            value={brk.end}
+                            onChange={(e) => handleUpdateSpecialBreak(idx, 'end', e.target.value)}
+                          />
+                        </div>
+                        <button type="button" className="icon-btn danger" style={{ marginLeft: '10px', height: '42px', width: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => handleRemoveSpecialBreak(idx)}>
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              <div className="modal-actions">
+                <button type="button" className="btn-secondary" onClick={() => setShowSpecialHourModal(false)}>
+                  İptal
+                </button>
+                <button type="submit" className="btn-primary" disabled={savingSpecialHours}>
+                  {savingSpecialHours ? 'Kaydediliyor...' : 'Kaydet'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div >
   )
 }
 
 export default AdminPage
-

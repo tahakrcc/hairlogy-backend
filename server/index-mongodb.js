@@ -21,7 +21,8 @@ import {
     DeviceToken,
     RevenueHistory,
     SystemSetting,
-    DailyStats
+    DailyStats,
+    SpecialWorkingHours
 } from './models.js';
 
 dotenv.config();
@@ -73,9 +74,13 @@ mongoose.connect(MONGODB_URI)
     .then(() => {
         console.log('Connected to MongoDB successfully');
         initializeDatabase();
+
+        // Start listening ONLY after successful DB connection
+        app.listen(PORT, () => console.log(`Server (MongoDB) running on port ${PORT}`));
     })
     .catch((err) => {
         console.error('MongoDB connection error:', err);
+        process.exit(1); // Exit if we can't connect to DB
     });
 
 // Root endpoint
@@ -326,6 +331,16 @@ app.get('/api/services', async (req, res) => {
     }
 });
 
+const isTimeInRange = (time, start, end) => {
+    if (!start || !end || start === '' || end === '') return false;
+    if (start < end) {
+        return time >= start && time < end;
+    } else {
+        // Overnight range (e.g., 22:00 to 04:00)
+        return time >= start || time < end;
+    }
+};
+
 // Get available time slots
 app.get('/api/available-times', async (req, res) => {
     try {
@@ -371,66 +386,100 @@ app.get('/api/available-times', async (req, res) => {
             });
         }
 
+        const nextDay = new Date(date);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const nextDayStr = nextDay.toISOString().split('T')[0];
+
         const bookings = await Booking.find({
             barber_id: { $in: targetBarbers },
-            appointment_date: date,
+            appointment_date: { $in: [date, nextDayStr] },
             status: { $ne: 'cancelled' }
         });
 
-        // Get working hours from Cache
-        const cachedWorkingHours = await getCachedSetting('working_hours', null);
-        const workingHours = cachedWorkingHours || {
-            weekday: { start: '09:00', end: '20:00' },
-            saturday: { start: '09:00', end: '22:00' },
-            sunday: { closed: true },
-            slotDuration: 60
-        };
+        const [specialHours] = await SpecialWorkingHours.find({ date, barber_id: null });
 
-        const sundaySettings = workingHours.sunday || {};
-        const isSundayClosed = String(sundaySettings.closed) === 'true';
-
-        if (dayOfWeek === 0 && isSundayClosed) {
+        if (specialHours && specialHours.is_closed) {
             return res.json({
                 availableTimes: [],
                 bookedTimes: [],
                 isClosed: true,
-                reason: 'Pazar günü kapalı',
+                reason: 'Bugün kapalı (Özel ayar)',
                 barberAvailability: {}
             });
         }
 
         let startHour, endHour;
-        if (dayOfWeek === 0) {
-            startHour = parseInt(workingHours.sunday?.start?.split(':')[0]) || 10;
-            endHour = parseInt(workingHours.sunday?.end?.split(':')[0]) || 18;
-        } else if (dayOfWeek === 6) {
-            startHour = parseInt(workingHours.saturday?.start?.split(':')[0]) || 9;
-            endHour = parseInt(workingHours.saturday?.end?.split(':')[0]) || 22;
-        } else {
-            startHour = parseInt(workingHours.weekday?.start?.split(':')[0]) || 9;
-            endHour = parseInt(workingHours.weekday?.end?.split(':')[0]) || 20;
-        }
+        let dayBreaks = [];
 
-        const slotDuration = workingHours.slotDuration || 60;
-        const allTimeSlots = [];
-        for (let hour = startHour; hour < endHour; hour++) {
-            if (slotDuration === 30) {
-                allTimeSlots.push(`${hour.toString().padStart(2, '0')}:00`, `${hour.toString().padStart(2, '0')}:30`);
-            } else if (slotDuration === 90) {
-                if ((hour - startHour) % 1.5 === 0 || allTimeSlots.length === 0) {
-                    allTimeSlots.push(`${hour.toString().padStart(2, '0')}:00`);
-                } else {
-                    allTimeSlots.push(`${hour.toString().padStart(2, '0')}:30`);
-                }
+        if (specialHours) {
+            startHour = parseInt(specialHours.start?.split(':')[0]) || 9;
+            endHour = parseInt(specialHours.end?.split(':')[0]) || 20;
+            dayBreaks = specialHours.breaks || [];
+        } else {
+            // Get working hours from Cache
+            const cachedWorkingHours = await getCachedSetting('working_hours', null);
+            const workingHours = cachedWorkingHours || {
+                weekday: { start: '09:00', end: '20:00' },
+                saturday: { start: '09:00', end: '22:00' },
+                sunday: { closed: true },
+                slotDuration: 60
+            };
+
+            const sundaySettings = workingHours.sunday || {};
+            const isSundayClosed = String(sundaySettings.closed) === 'true';
+
+            if (dayOfWeek === 0 && isSundayClosed) {
+                return res.json({
+                    availableTimes: [],
+                    bookedTimes: [],
+                    isClosed: true,
+                    reason: 'Pazar günü kapalı',
+                    barberAvailability: {}
+                });
+            }
+
+            if (dayOfWeek === 0) {
+                startHour = parseInt(workingHours.sunday?.start?.split(':')[0]) || 10;
+                endHour = parseInt(workingHours.sunday?.end?.split(':')[0]) || 18;
+                dayBreaks = workingHours.sunday?.breaks || [];
+            } else if (dayOfWeek === 6) {
+                startHour = parseInt(workingHours.saturday?.start?.split(':')[0]) || 9;
+                endHour = parseInt(workingHours.saturday?.end?.split(':')[0]) || 22;
+                dayBreaks = workingHours.saturday?.breaks || [];
             } else {
-                allTimeSlots.push(`${hour.toString().padStart(2, '0')}:00`);
+                startHour = parseInt(workingHours.weekday?.start?.split(':')[0]) || 9;
+                endHour = parseInt(workingHours.weekday?.end?.split(':')[0]) || 20;
+                dayBreaks = workingHours.weekday?.breaks || [];
             }
         }
 
-        let dayBreaks = [];
-        if (dayOfWeek === 0) dayBreaks = workingHours.sunday?.breaks || [];
-        else if (dayOfWeek === 6) dayBreaks = workingHours.saturday?.breaks || [];
-        else dayBreaks = workingHours.weekday?.breaks || [];
+        const slotDuration = (await getCachedSetting('working_hours', null))?.slotDuration || 60;
+        const allTimeSlots = [];
+
+        let effectiveEndHour = endHour;
+        if (effectiveEndHour <= startHour && effectiveEndHour !== 0) {
+            effectiveEndHour += 24;
+        } else if (effectiveEndHour === 0) {
+            effectiveEndHour = 24;
+        }
+
+        for (let hour = startHour; hour < effectiveEndHour; hour++) {
+            const displayHour = hour % 24;
+            if (slotDuration === 30) {
+                allTimeSlots.push(`${displayHour.toString().padStart(2, '0')}:00`, `${displayHour.toString().padStart(2, '0')}:30`);
+            } else if (slotDuration === 90) {
+                if ((hour - startHour) % 1.5 === 0 || allTimeSlots.length === 0) {
+                    allTimeSlots.push(`${displayHour.toString().padStart(2, '0')}:00`);
+                } else {
+                    allTimeSlots.push(`${displayHour.toString().padStart(2, '0')}:30`);
+                }
+            } else {
+                allTimeSlots.push(`${displayHour.toString().padStart(2, '0')}:00`);
+            }
+        }
+
+        // Breaks already set in the specialHours/default check above
+
 
         const globalBlockedRanges = [
             ...dayBreaks,
@@ -446,7 +495,7 @@ app.get('/api/available-times', async (req, res) => {
             // Check if globally blocked
             let isGloballyBlocked = false;
             for (let range of globalBlockedRanges) {
-                if (range.start && range.end && time >= range.start && time < range.end) {
+                if (isTimeInRange(time, range.start, range.end)) {
                     isGloballyBlocked = true;
                     break;
                 }
@@ -468,13 +517,16 @@ app.get('/api/available-times', async (req, res) => {
 
                 let isBarberBlocked = false;
                 for (let range of barberBlockedRanges) {
-                    if (time >= range.start && time < range.end) {
+                    if (isTimeInRange(time, range.start, range.end)) {
                         isBarberBlocked = true; break;
                     }
                 }
                 if (isBarberBlocked) return;
 
-                const isBooked = bookings.some(b => b.appointment_date === date && b.appointment_time.trim() === time && String(b.barber_id) === String(bId));
+                const hourInt = parseInt(time.split(':')[0]);
+                const targetDate = hourInt < 9 ? nextDayStr : date;
+
+                const isBooked = bookings.some(b => b.appointment_date === targetDate && b.appointment_time.trim() === time && String(b.barber_id) === String(bId));
                 if (isBooked) return;
 
                 if (!availableBarbersForSlot.includes(Number(bId))) {
@@ -542,66 +594,88 @@ app.get('/api/available-times-batch', async (req, res) => {
             end_date: { $gte: minDate }
         });
 
+        const expandedDateList = [...new Set(dateList.flatMap(d => {
+            const nextD = new Date(d);
+            nextD.setDate(nextD.getDate() + 1);
+            return [d, nextD.toISOString().split('T')[0]];
+        }))];
+
         const bookings = await Booking.find({
             barber_id: { $in: targetBarbers },
-            appointment_date: { $in: dateList },
+            appointment_date: { $in: expandedDateList },
             status: { $ne: 'cancelled' }
+        });
+
+        const specialHoursList = await SpecialWorkingHours.find({
+            date: { $in: dateList },
+            barber_id: null
         });
 
         for (const date of dateList) {
             const [y, m, d] = date.split('-').map(Number);
             const dayOfWeek = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 
-            if (dayOfWeek === 0 && isSundayClosed) {
-                results[date] = { availableTimes: [], bookedTimes: [], isClosed: true, reason: 'Pazar günü kapalı', barberAvailability: {} };
-                continue;
-            }
-
-            const relevantClosedDates = closedDates.filter(cd => date >= cd.start_date && date <= cd.end_date);
-
-            // Global full day closure
-            const globalFullDayClosure = relevantClosedDates.find(c =>
-                (!c.barber_id || c.barber_id === 'undefined') && ((!c.start_time && !c.end_time) || c.start_time === '' || c.end_time === '')
-            );
-
-            if (globalFullDayClosure) {
-                results[date] = { availableTimes: [], bookedTimes: [], isClosed: true, reason: globalFullDayClosure.reason || 'Kapalı', barberAvailability: {} };
-                continue;
-            }
-
             let startHour, endHour;
-            const h = workingHours;
-            if (dayOfWeek === 0) {
-                startHour = parseInt(h.sunday?.start?.split(':')[0]) || 10;
-                endHour = parseInt(h.sunday?.end?.split(':')[0]) || 18;
-            } else if (dayOfWeek === 6) {
-                startHour = parseInt(h.saturday?.start?.split(':')[0]) || 9;
-                endHour = parseInt(h.saturday?.end?.split(':')[0]) || 22;
-            } else {
-                startHour = parseInt(h.weekday?.start?.split(':')[0]) || 9;
-                endHour = parseInt(h.weekday?.end?.split(':')[0]) || 20;
+            let dayBreaks = [];
+            const specialHours = specialHoursList.find(sh => sh.date === date);
+
+            if (specialHours && specialHours.is_closed) {
+                results[date] = { availableTimes: [], bookedTimes: [], isClosed: true, reason: 'Bugün kapalı (Özel ayar)', barberAvailability: {} };
+                continue;
             }
 
-            const slotDuration = h.slotDuration || 60;
-            const allTimeSlots = [];
-            for (let hour = startHour; hour < endHour; hour++) {
-                if (slotDuration === 30) {
-                    allTimeSlots.push(`${hour.toString().padStart(2, '0')}:00`, `${hour.toString().padStart(2, '0')}:30`);
-                } else if (slotDuration === 90) {
-                    if ((hour - startHour) % 1.5 === 0 || allTimeSlots.length === 0) {
-                        allTimeSlots.push(`${hour.toString().padStart(2, '0')}:00`);
-                    } else {
-                        allTimeSlots.push(`${hour.toString().padStart(2, '0')}:30`);
-                    }
+            if (specialHours) {
+                startHour = parseInt(specialHours.start?.split(':')[0]) || 9;
+                endHour = parseInt(specialHours.end?.split(':')[0]) || 20;
+                dayBreaks = specialHours.breaks || [];
+            } else {
+                if (dayOfWeek === 0 && isSundayClosed) {
+                    results[date] = { availableTimes: [], bookedTimes: [], isClosed: true, reason: 'Pazar günü kapalı', barberAvailability: {} };
+                    continue;
+                }
+
+                const h = workingHours;
+                if (dayOfWeek === 0) {
+                    startHour = parseInt(h.sunday?.start?.split(':')[0]) || 10;
+                    endHour = parseInt(h.sunday?.end?.split(':')[0]) || 18;
+                    dayBreaks = h.sunday?.breaks || [];
+                } else if (dayOfWeek === 6) {
+                    startHour = parseInt(h.saturday?.start?.split(':')[0]) || 9;
+                    endHour = parseInt(h.saturday?.end?.split(':')[0]) || 22;
+                    dayBreaks = h.saturday?.breaks || [];
                 } else {
-                    allTimeSlots.push(`${hour.toString().padStart(2, '0')}:00`);
+                    startHour = parseInt(h.weekday?.start?.split(':')[0]) || 9;
+                    endHour = parseInt(h.weekday?.end?.split(':')[0]) || 20;
+                    dayBreaks = h.weekday?.breaks || [];
                 }
             }
 
-            let dayBreaks = [];
-            if (dayOfWeek === 0) dayBreaks = h.sunday?.breaks || [];
-            else if (dayOfWeek === 6) dayBreaks = h.saturday?.breaks || [];
-            else dayBreaks = h.weekday?.breaks || [];
+            const slotDuration = workingHours.slotDuration || 60;
+            const allTimeSlots = [];
+
+            let effectiveEndHour = endHour;
+            if (effectiveEndHour <= startHour && effectiveEndHour !== 0) {
+                effectiveEndHour += 24;
+            } else if (effectiveEndHour === 0) {
+                effectiveEndHour = 24;
+            }
+
+            for (let hour = startHour; hour < effectiveEndHour; hour++) {
+                const displayHour = hour % 24;
+                if (slotDuration === 30) {
+                    allTimeSlots.push(`${displayHour.toString().padStart(2, '0')}:00`, `${displayHour.toString().padStart(2, '0')}:30`);
+                } else if (slotDuration === 90) {
+                    if ((hour - startHour) % 1.5 === 0 || allTimeSlots.length === 0) {
+                        allTimeSlots.push(`${displayHour.toString().padStart(2, '0')}:00`);
+                    } else {
+                        allTimeSlots.push(`${displayHour.toString().padStart(2, '0')}:30`);
+                    }
+                } else {
+                    allTimeSlots.push(`${displayHour.toString().padStart(2, '0')}:00`);
+                }
+            }
+
+            const relevantClosedDates = closedDates.filter(c => c.start_date <= date && c.end_date >= date);
 
             const globalBlockedRanges = [
                 ...dayBreaks,
@@ -617,7 +691,7 @@ app.get('/api/available-times-batch', async (req, res) => {
                 // Check if globally blocked
                 let isGloballyBlocked = false;
                 for (let range of globalBlockedRanges) {
-                    if (range.start && range.end && time >= range.start && time < range.end) {
+                    if (isTimeInRange(time, range.start, range.end)) {
                         isGloballyBlocked = true;
                         break;
                     }
@@ -641,14 +715,21 @@ app.get('/api/available-times-batch', async (req, res) => {
 
                     let isBarberBlocked = false;
                     for (let range of barberBlockedRanges) {
-                        if (time >= range.start && time < range.end) {
+                        if (isTimeInRange(time, range.start, range.end)) {
                             isBarberBlocked = true; break;
                         }
                     }
                     if (isBarberBlocked) return;
 
                     // Check if this barber is booked at this time
-                    const isBooked = bookings.some(b => b.appointment_date === date && b.appointment_time.trim() === time && String(b.barber_id) === String(bId));
+                    const hourInt = parseInt(time.split(':')[0]);
+                    const targetDate = hourInt < 9 ? (() => {
+                        const nD = new Date(date);
+                        nD.setDate(nD.getDate() + 1);
+                        return nD.toISOString().split('T')[0];
+                    })() : date;
+
+                    const isBooked = bookings.some(b => b.appointment_date === targetDate && b.appointment_time.trim() === time && String(b.barber_id) === String(bId));
                     if (isBooked) return;
 
                     if (!availableBarbersForSlot.includes(Number(bId))) {
@@ -714,10 +795,18 @@ app.post('/api/bookings', async (req, res) => {
             }
         }
 
+        let actualAppointmentDate = appointmentDate;
+        const hourInt = parseInt(appointmentTime.split(':')[0]);
+        if (hourInt < 9) {
+            const tempDate = new Date(appointmentDate);
+            tempDate.setDate(tempDate.getDate() + 1);
+            actualAppointmentDate = tempDate.toISOString().split('T')[0];
+        }
+
         // Availability check
         const existing = await Booking.findOne({
             barber_id: barberId,
-            appointment_date: appointmentDate,
+            appointment_date: actualAppointmentDate,
             appointment_time: appointmentTime,
             status: { $ne: 'cancelled' }
         });
@@ -732,7 +821,7 @@ app.post('/api/bookings', async (req, res) => {
             customer_name: customerName,
             customer_phone: customerPhone,
             customer_email: customerEmail,
-            appointment_date: appointmentDate,
+            appointment_date: actualAppointmentDate,
             appointment_time: appointmentTime,
             device_token: deviceToken,
             status: 'confirmed'
@@ -1199,6 +1288,48 @@ app.put('/api/admin/settings/working-hours', verifyToken, async (req, res) => {
     }
 });
 
+// ============ SPECIAL WORKING HOURS ============
+
+// Get special hours
+app.get('/api/admin/special-hours', verifyToken, async (req, res) => {
+    try {
+        const hours = await SpecialWorkingHours.find().sort({ date: 1 });
+        res.json(hours.map(h => ({ id: h._id, ...h.toObject() })));
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Create/Update special hours
+app.post('/api/admin/special-hours', verifyToken, async (req, res) => {
+    try {
+        const { date, barber_id, start, end, breaks, is_closed } = req.body;
+        if (!date) return res.status(400).json({ error: 'Tarih gereklidir' });
+
+        await SpecialWorkingHours.findOneAndUpdate(
+            { date, barber_id: barber_id || null },
+            { date, barber_id: barber_id || null, start, end, breaks, is_closed },
+            { upsert: true, new: true }
+        );
+
+        systemSettingsCacheTime = 0; // Clear cache
+        res.json({ message: 'Özel çalışma saatleri kaydedildi' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Delete special hours
+app.delete('/api/admin/special-hours/:id', verifyToken, async (req, res) => {
+    try {
+        await SpecialWorkingHours.findByIdAndDelete(req.params.id);
+        systemSettingsCacheTime = 0; // Clear cache
+        res.json({ message: 'Özel çalışma saatleri silindi' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Admin Control: Toggle Maintenance Mode
 app.post('/api/admin/settings/maintenance', verifyToken, async (req, res) => {
     try {
@@ -1392,5 +1523,3 @@ function scheduleCleanup() {
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../dist', 'index.html'));
 });
-
-app.listen(PORT, () => console.log(`Server (MongoDB) running on port ${PORT}`));

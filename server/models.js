@@ -109,4 +109,17 @@ const dailyStatsSchema = new mongoose.Schema({
     visits: { type: Number, default: 0 }
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
+const specialWorkingHoursSchema = new mongoose.Schema({
+    date: { type: String, required: true }, // YYYY-MM-DD
+    barber_id: mongoose.Schema.Types.Mixed, // null = Shop, 1 = Yasin, 2 = Emir
+    start: String,
+    end: String,
+    breaks: [{ start: String, end: String }],
+    is_closed: { type: Boolean, default: false }
+}, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
+
+// Index for fast lookup by date
+specialWorkingHoursSchema.index({ date: 1, barber_id: 1 });
+
 export const DailyStats = mongoose.model('DailyStats', dailyStatsSchema);
+export const SpecialWorkingHours = mongoose.model('SpecialWorkingHours', specialWorkingHoursSchema);

@@ -37,7 +37,6 @@ export default {
   // Contact
   contact: {
     title: 'İletişim',
-    address: 'Adres',
     phone: 'Telefon',
     email: 'E-posta'
   },

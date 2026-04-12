@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Scissors, Clock, Star, Globe, Instagram, Youtube, MessageCircle } from 'lucide-react'
+import { Scissors, Clock, Star, Instagram, Youtube, MessageCircle } from 'lucide-react'
 import Diamond3D from '../components/Diamond3D'
 import { useLanguage } from '../contexts/LanguageContext'
 import { barbersAPI, servicesAPI } from '../services/api'
@@ -243,20 +243,6 @@ function HomePage() {
           <h2 className="section-title">{t('contact.title')}</h2>
           <div className="contact-grid">
             <div className="contact-content-wrapper">
-              <div className="contact-card">
-                <div className="contact-icon-wrapper">
-                  <Globe size={32} />
-                </div>
-                <h3>{t('contact.address')}</h3>
-                <a
-                  href="https://maps.google.com/?q=38.351147,38.285103"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="contact-link address-link"
-                >
-                  Haritada Konumu Gör
-                </a>
-              </div>
 
               <div className="contact-card">
                 <div className="contact-icon-wrapper">

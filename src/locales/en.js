@@ -37,7 +37,6 @@ export default {
   // Contact
   contact: {
     title: 'Contact',
-    address: 'Address',
     phone: 'Phone',
     email: 'Email'
   },

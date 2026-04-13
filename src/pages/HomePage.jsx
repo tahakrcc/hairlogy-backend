@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Scissors, Clock, Star, Instagram, Youtube, MessageCircle } from 'lucide-react'
+import { Scissors, Clock, Star, Instagram, Youtube, MessageCircle, MapPin } from 'lucide-react'
 import Diamond3D from '../components/Diamond3D'
 import { useLanguage } from '../contexts/LanguageContext'
 import { barbersAPI, servicesAPI } from '../services/api'
@@ -262,6 +262,16 @@ function HomePage() {
                 <a href="mailto:hairlogyyasin@gmail.com" className="contact-link">
                   hairlogyyasin@gmail.com
                 </a>
+              </div>
+
+              <div className="contact-card">
+                <div className="contact-icon-wrapper">
+                  <MapPin size={32} />
+                </div>
+                <h3>{t('contact.address')}</h3>
+                <span className="contact-link" style={{ textAlign: 'center', lineHeight: '1.5' }}>
+                  Malatya park ofis plaza 17. Kat 99 numara
+                </span>
               </div>
             </div>
           </div>

@@ -38,7 +38,8 @@ export default {
   contact: {
     title: 'İletişim',
     phone: 'Telefon',
-    email: 'E-posta'
+    email: 'E-posta',
+    address: 'Adres'
   },
 
   // Footer

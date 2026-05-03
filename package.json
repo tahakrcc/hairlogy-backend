@@ -5,6 +5,9 @@
   "private": true,
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
     "axios": "^1.6.2",
     "date-fns": "^2.30.0",
     "html2canvas": "^1.4.1",
@@ -14,18 +17,18 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.0",
     "three": "^0.181.2",
-    "@types/react": "^18.2.43",
-    "@types/react-dom": "^18.2.17",
-    "@vitejs/plugin-react": "^4.2.1",
     "vite": "^5.0.8"
   },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "server": "node server/index.js",
+    "server": "node server/index-mongodb.js",
     "dev:all": "concurrently \"npm run dev\" \"npm run server\"",
     "postinstall": "cd server && npm install && cd .. && npm run build",
     "start": "cd server && node index-mongodb.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }

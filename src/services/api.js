@@ -95,6 +95,7 @@ export const adminAPI = {
   getAvailableTimes: (barberId, date) => api.get('/available-times', { params: { barberId, date } }),
   createBooking: (bookingData) => api.post('/bookings', bookingData),
   getStats: () => api.get('/admin/stats'),
+  transferBooking: (id) => api.post(`/admin/bookings/${id}/transfer`),
   sendReminder: (id) => api.post(`/admin/bookings/${id}/reminder`),
   sendDailyReport: (date) => api.post('/admin/daily-report', { date }),
   // Closed Dates API

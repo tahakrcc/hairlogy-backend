@@ -25,7 +25,7 @@ import {
     SpecialWorkingHours
 } from './models.js';
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -1028,6 +1028,40 @@ app.patch('/api/admin/bookings/:id', verifyToken, async (req, res) => {
     }
 });
 
+app.post('/api/admin/bookings/:id/transfer', verifyToken, async (req, res) => {
+    try {
+        const booking = await Booking.findById(req.params.id);
+        if (!booking) return res.status(404).json({ error: 'Randevu bulunamadı' });
+
+        const currentBarberId = Number(booking.barber_id);
+        const targetBarberId = currentBarberId === 1 ? 2 : 1;
+        
+        const targetBarber = await Barber.findOne({ barber_id: targetBarberId });
+        if (!targetBarber) return res.status(404).json({ error: 'Hedef berber bulunamadı' });
+
+        // Check if target barber is free
+        const existing = await Booking.findOne({
+            barber_id: targetBarberId,
+            appointment_date: booking.appointment_date,
+            appointment_time: booking.appointment_time,
+            status: { $ne: 'cancelled' }
+        });
+
+        if (existing) {
+            return res.status(400).json({ error: `${targetBarber.name} bu saatte dolu!` });
+        }
+
+        booking.barber_id = targetBarberId;
+        booking.barber_name = targetBarber.name;
+        booking.updated_at = Date.now();
+        await booking.save();
+
+        res.json({ message: `Randevu ${targetBarber.name} berberine aktarıldı`, targetBarber: targetBarber.name });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.delete('/api/admin/bookings/:id', verifyToken, async (req, res) => {
     try {
         await Booking.findByIdAndDelete(req.params.id);
@@ -1395,7 +1429,7 @@ app.get('/api/settings/booking-horizon', async (req, res) => {
     try {
         const setting = await SystemSetting.findOne({ key: 'booking_horizon' });
         res.json({ booking_horizon: setting?.value || 14 });
-    } catch (error) {
+} catch (error) {
         res.json({ booking_horizon: 14 });
     }
 });

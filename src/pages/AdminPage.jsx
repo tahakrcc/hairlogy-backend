@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LogOut, Calendar, Users, DollarSign, CheckCircle, XCircle, Clock, Trash2, Filter, Send, Phone, MessageSquare, ChevronRight, ChevronLeft, Plus, Scissors, X, Settings, TrendingUp } from 'lucide-react'
 import { adminAPI, barbersAPI, servicesAPI, settingsAPI, default as api } from '../services/api'
@@ -787,6 +787,19 @@ function AdminPage() {
       setConfirmDialog({ isOpen: false, type: null, id: null, message: '' })
     } catch (error) {
       setToast({ message: 'Randevu iptal edilirken hata oluştu', type: 'error' })
+    }
+  }
+
+  const handleTransfer = async (id) => {
+    if (!window.confirm('Bu randevuyu diğer berbere aktarmak istediğinize emin misiniz?')) return
+    try {
+      await adminAPI.transferBooking(id)
+      loadBookings()
+      loadStats()
+      setToast({ message: 'Randevu başarıyla aktarıldı', type: 'success' })
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || 'Aktarım sırasında hata oluştu'
+      setToast({ message: errorMsg, type: 'error' })
     }
   }
 
@@ -1922,6 +1935,9 @@ function AdminPage() {
                               <Send size={16} />
                             </button>
                           )}
+                          <button className="icon-btn" onClick={() => handleTransfer(booking.id)} title="Diğer Berbere Aktar" aria-label="Transfer">
+                            <Scissors size={16} />
+                          </button>
                         </>
                       )}
                       {booking.status !== 'cancelled' && (

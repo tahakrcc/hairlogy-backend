@@ -21,6 +21,7 @@ export default defineConfig({
         theme_color: '#121212',
         background_color: '#121212',
         display: 'standalone',
+        start_url: '/randevu',
         icons: [
           {
             src: '/Gemini_Generated_Image_ii78ufii78ufii78.png',

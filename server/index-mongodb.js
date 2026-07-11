@@ -777,7 +777,7 @@ app.get('/api/available-times-batch', async (req, res) => {
 // Create booking
 app.post('/api/bookings', async (req, res) => {
     try {
-        const { barberId, barberName, serviceName, servicePrice, customerName, customerPhone, customerEmail, appointmentDate, appointmentTime, deviceToken } = req.body;
+        const { barberId, barberName, serviceName, servicePrice, customerName, customerPhone, customerEmail, appointmentDate, appointmentTime, deviceToken, deviceId } = req.body;
 
         if (barberId === undefined || barberId === null || !serviceName || !customerName || !customerPhone || !appointmentDate || !appointmentTime) {
             return res.status(400).json({ error: 'Missing fields' });
@@ -839,8 +839,18 @@ app.post('/api/bookings', async (req, res) => {
             appointment_date: actualAppointmentDate,
             appointment_time: appointmentTime,
             device_token: deviceToken,
+            deviceId: deviceId,
             status: 'confirmed'
         });
+
+        // Send Push Notification to Customer
+        if (deviceId) {
+            sendPushNotification({
+                title: 'Randevunuz Onaylandı! ✅',
+                body: `Sayın ${customerName}, ${appointmentDate} ${appointmentTime} tarihindeki randevunuz başarıyla oluşturuldu.`,
+                icon: '/icon-192.png'
+            }, deviceId);
+        }
 
         // Send email notification
         // Send email notification (Customer & Admin)

@@ -779,7 +779,7 @@ app.post('/api/bookings', async (req, res) => {
     try {
         const { barberId, barberName, serviceName, servicePrice, customerName, customerPhone, customerEmail, appointmentDate, appointmentTime, deviceToken } = req.body;
 
-        if (!barberId || !serviceName || !customerName || !customerPhone || !appointmentDate || !appointmentTime) {
+        if (barberId === undefined || barberId === null || !serviceName || !customerName || !customerPhone || !appointmentDate || !appointmentTime) {
             return res.status(400).json({ error: 'Missing fields' });
         }
 

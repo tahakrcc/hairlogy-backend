@@ -22,9 +22,13 @@ const PWAInstallModal = () => {
         const standalone = window.matchMedia('(display-mode: standalone)').matches;
         console.log('PWAInstallModal isStandalone:', standalone);
         setIsStandalone(standalone);
-        if (standalone) {
-            // Already installed, maybe just ask for notification
+        
+        // Always check notification permission first on mount (with a small delay for better UX)
+        setTimeout(() => {
             checkNotificationPermission();
+        }, 1000);
+
+        if (standalone) {
             return;
         }
 
@@ -128,19 +132,21 @@ const PWAInstallModal = () => {
         setShowNotificationModal(false);
     };
 
-    if (isStandalone) return null;
+    // Removed early return so notification modal can render in PWA mode
 
     return (
         <>
-            {/* Yüzen İndirme Butonu (Sol Alt) */}
-            <button 
-                onClick={() => setShowInstallModal(true)}
-                className="pwa-floating-btn"
-                aria-label="Uygulamayı İndir"
-            >
-                <Download size={22} color="#000000" />
-                <span className="pwa-floating-btn-text">Uygulamayı İndir</span>
-            </button>
+            {/* Yüzen İndirme Butonu (Sol Alt) - Sadece PWA modunda değilsek göster */}
+            {!isStandalone && (
+                <button 
+                    onClick={() => setShowInstallModal(true)}
+                    className="pwa-floating-btn"
+                    aria-label="Uygulamayı İndir"
+                >
+                    <Download size={22} color="#000000" />
+                    <span className="pwa-floating-btn-text">Uygulamayı İndir</span>
+                </button>
+            )}
 
             {/* Modals */}
             {(showInstallModal || showNotificationModal || showIOSInstructions) && (
@@ -158,7 +164,31 @@ const PWAInstallModal = () => {
                     <X size={20} />
                 </button>
                 
-                {showInstallModal ? (
+                {showNotificationModal ? (
+                    <div>
+                        <div className="pwa-icon-container" style={{ width: '80px', height: '80px', margin: '0 auto 20px', backgroundColor: '#eef2ff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4f46e5' }}>
+                            <Bell size={40} />
+                        </div>
+                        <h3 className="pwa-modal-title" style={{ fontSize: '24px', fontWeight: 'bold' }}>Bildirimlere İzin Verin</h3>
+                        <p className="pwa-modal-text" style={{ fontSize: '16px', lineHeight: '1.5', marginTop: '10px', marginBottom: '25px' }}>
+                            Randevu anında ve randevunuza 1 saat kala size hatırlatma gönderebilmemiz için bildirimlere izin verin.
+                        </p>
+                        <button 
+                            onClick={handleAllowNotifications}
+                            className="pwa-action-btn"
+                            style={{ padding: '14px', fontSize: '18px', fontWeight: 'bold', marginBottom: '10px' }}
+                        >
+                            Bildirimlere İzin Ver
+                        </button>
+                        <button 
+                            onClick={() => setShowNotificationModal(false)}
+                            className="pwa-cancel-btn"
+                            style={{ padding: '14px', fontSize: '16px' }}
+                        >
+                            Şimdi Değil
+                        </button>
+                    </div>
+                ) : showInstallModal ? (
                     <div>
                         <div className="pwa-icon-container">
                             <Download size={32} />
@@ -172,28 +202,6 @@ const PWAInstallModal = () => {
                             className="pwa-action-btn"
                         >
                             {isIOS ? 'Nasıl Yüklenir?' : 'Hemen Yükle'}
-                        </button>
-                    </div>
-                ) : showNotificationModal ? (
-                    <div>
-                        <div className="pwa-icon-container">
-                            <Bell size={32} />
-                        </div>
-                        <h3 className="pwa-modal-title">Bildirimlere İzin Verin</h3>
-                        <p className="pwa-modal-text">
-                            Randevu anında ve randevunuza 1 saat kala size hatırlatma gönderebilmemiz için bildirimlere izin verin.
-                        </p>
-                        <button 
-                            onClick={handleAllowNotifications}
-                            className="pwa-action-btn"
-                        >
-                            İzin Ver
-                        </button>
-                        <button 
-                            onClick={() => setShowNotificationModal(false)}
-                            className="pwa-cancel-btn"
-                        >
-                            Şimdi Değil
                         </button>
                     </div>
                 ) : showIOSInstructions ? (

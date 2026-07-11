@@ -515,9 +515,20 @@ function BookingPage() {
       const deviceToken = getOrCreateDeviceToken()
       const deviceId = localStorage.getItem('deviceId')
 
+      let finalBarberId = isUnifiedMode ? 0 : parseInt(barberId);
+      let finalBarberName = isUnifiedMode ? 'Otomatik Atama' : (barber ? barber.name : '');
+
+      if (isUnifiedMode) {
+        const availableBarbers = barberAvailability[selectedTime] || [];
+        if (availableBarbers.length > 0) {
+          finalBarberId = availableBarbers[0];
+          finalBarberName = barbers[finalBarberId]?.name || 'Otomatik Atama';
+        }
+      }
+
       const bookingResponse = await bookingsAPI.create({
-        barberId: isUnifiedMode ? 0 : parseInt(barberId),
-        barberName: isUnifiedMode ? 'Otomatik Atama' : (barber ? barber.name : ''),
+        barberId: finalBarberId,
+        barberName: finalBarberName,
         serviceName: selectedService.name,
         servicePrice: selectedService.price,
         customerName: formData.name,
@@ -535,7 +546,7 @@ function BookingPage() {
 
       // Store booking details for modal
       setBookingDetails({
-        barberName: barber.name,
+        barberName: finalBarberName,
         serviceName: selectedService.name,
         servicePrice: selectedService.price,
         customerName: formData.name,
@@ -681,7 +692,7 @@ function BookingPage() {
             <ArrowLeft size={20} />
             {t('booking.back')}
           </button>
-          <h1>{barber ? barber.name : 'Randevu'} - {t('booking.bookAppointment')}</h1>
+          <h1>{isUnifiedMode ? 'Ortak Randevu' : (barber ? barber.name : 'Randevu')} - {t('booking.bookAppointment')}</h1>
           <button
             className="refresh-btn"
             onClick={handleRefresh}

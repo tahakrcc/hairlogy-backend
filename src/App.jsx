@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { LanguageProvider } from './contexts/LanguageContext'
 import HomePage from './pages/HomePage'
-import BookingPage from './pages/BookingPage'
+import BarberSelectPage from './pages/BarberSelectPage'
 import AdminPage from './pages/AdminPage'
 import StatisticsPage from './pages/StatisticsPage'
-import BarberSelectPage from './pages/BarberSelectPage'
 import MaintenancePage from './pages/MaintenancePage'
-import LoadingScreen from './components/LoadingScreen'
+import BookingPage from './pages/BookingPage'
 import PWAInstallModal from './components/PWAInstallModal'
+import LoadingScreen from './components/LoadingScreen'
 import { settingsAPI } from './services/api'
 import './App.css'
 import './styles/greek-key-patterns.css'
@@ -77,11 +77,10 @@ function App() {
               </>
             ) : isStandalone ? (
               <>
-                <Route path="/" element={<BarberSelectPage />} />
-                <Route path="/berber-sec" element={<BarberSelectPage />} />
+                <Route path="/" element={<BookingPage />} />
                 <Route path="/randevu" element={<BookingPage />} />
                 <Route path="/randevu/:barberId" element={<BookingPage />} />
-                <Route path="*" element={<BarberSelectPage />} />
+                <Route path="*" element={<BookingPage />} />
               </>
             ) : (
               <>
@@ -89,6 +88,7 @@ function App() {
                 <Route path="/berber-sec" element={<BarberSelectPage />} />
                 <Route path="/randevu" element={<BookingPage />} />
                 <Route path="/randevu/:barberId" element={<BookingPage />} />
+                <Route path="*" element={<HomePage />} />
               </>
             )}
           </Routes>

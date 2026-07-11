@@ -783,28 +783,30 @@ app.post('/api/bookings', async (req, res) => {
             return res.status(400).json({ error: 'Missing fields' });
         }
 
-        // Break time check - REMOVED
-        // if (appointmentTime.trim() === '16:00') return res.status(400).json({ error: 'Yemek molası' });
-
-        // Device token limit check
-        if (deviceToken) {
-            let tokenDoc = await DeviceToken.findOne({ token: deviceToken });
-            const now = new Date();
-            if (tokenDoc) {
-                const hoursSinceUpdate = (now - tokenDoc.updated_at) / (1000 * 60 * 60);
-                if (hoursSinceUpdate >= 3) {
-                    // Reset after 3 hours - explicitly update timestamp
-                    tokenDoc.booking_count = 1;
-                    tokenDoc.updated_at = now;
-                } else if (tokenDoc.booking_count >= 2) {
-                    return res.status(429).json({ error: 'Maksimum randevu hakkı doldu.' });
-                } else {
-                    tokenDoc.booking_count += 1;
-                    tokenDoc.updated_at = now;
+        // Auto-assign barber if barberId is 0 (unified/shared mode)
+        let finalBarberId = barberId;
+        let finalBarberName = barberName;
+        if (Number(barberId) === 0) {
+            const activeBarbers = await Barber.find({ active: true }).select('barber_id name');
+            if (activeBarbers.length > 0) {
+                // Find which barber has fewest bookings for this time slot
+                let bestBarber = activeBarbers[0];
+                let minBookings = Infinity;
+                for (const b of activeBarbers) {
+                    const count = await Booking.countDocuments({
+                        barber_id: { $in: [Number(b.barber_id), String(b.barber_id)] },
+                        appointment_date: appointmentDate,
+                        appointment_time: appointmentTime,
+                        status: { $ne: 'cancelled' }
+                    });
+                    if (count < minBookings) {
+                        minBookings = count;
+                        bestBarber = b;
+                    }
                 }
-                await tokenDoc.save();
-            } else {
-                await DeviceToken.create({ token: deviceToken, booking_count: 1 });
+                finalBarberId = Number(bestBarber.barber_id);
+                finalBarberName = bestBarber.name;
+                console.log(`Auto-assigned barber: ${finalBarberName} (ID: ${finalBarberId})`);
             }
         }
 
@@ -818,7 +820,7 @@ app.post('/api/bookings', async (req, res) => {
 
         // Availability check
         const existing = await Booking.findOne({
-            barber_id: barberId,
+            barber_id: finalBarberId,
             appointment_date: actualAppointmentDate,
             appointment_time: appointmentTime,
             status: { $ne: 'cancelled' }
@@ -827,8 +829,8 @@ app.post('/api/bookings', async (req, res) => {
         if (existing) return res.status(400).json({ error: 'Bu saat dolu' });
 
         const newBooking = await Booking.create({
-            barber_id: barberId,
-            barber_name: barberName,
+            barber_id: finalBarberId,
+            barber_name: finalBarberName,
             service_name: serviceName,
             service_price: servicePrice,
             customer_name: customerName,
@@ -943,10 +945,12 @@ app.get('/api/admin/bookings', verifyToken, async (req, res) => {
         if (status) filter.status = status;
         if (date) filter.appointment_date = date;
 
-        // Barber filter
-        if (barberId) {
+        // Barber filter - skip entirely when showAll is true
+        if (showAll === 'true') {
+            // No barber filter - show all bookings
+        } else if (barberId) {
             filter.barber_id = { $in: [Number(barberId), String(barberId)] };
-        } else if (userBarberId && showAll !== 'true') {
+        } else if (userBarberId) {
             filter.barber_id = { $in: [Number(userBarberId), String(userBarberId)] };
         }
 

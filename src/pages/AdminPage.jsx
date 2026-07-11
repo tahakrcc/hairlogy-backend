@@ -23,7 +23,7 @@ function AdminPage() {
   const [bookings, setBookings] = useState([])
   const [stats, setStats] = useState(null)
   const [filters, setFilters] = useState({ status: '', barberId: '', date: '' })
-  const [showAllBookings, setShowAllBookings] = useState(false)
+  const [showAllBookings, setShowAllBookings] = useState(true)
   const [loginForm, setLoginForm] = useState({ username: '', password: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [toast, setToast] = useState(null)
@@ -283,10 +283,12 @@ function AdminPage() {
     if (token) {
       setIsAuthenticated(true)
       if (username) setCurrentUser(username)
-      const showAll = localStorage.getItem('showAllBookings') === 'true'
+      const showAll = localStorage.getItem('showAllBookings') !== 'false'
       setShowAllBookings(showAll)
       if (barberId && !showAll) {
         setFilters(prev => ({ ...prev, barberId: String(barberId) }))
+      } else {
+        setFilters(prev => ({ ...prev, barberId: '' }))
       }
     }
     setLoading(false)
@@ -464,7 +466,7 @@ function AdminPage() {
     try {
       const params = {}
       if (filters.status) params.status = filters.status
-      if (filters.barberId) params.barberId = filters.barberId
+      if (filters.barberId && !showAll) params.barberId = filters.barberId
       if (filters.date) params.date = filters.date
       if (showAll) params.showAll = 'true'
 

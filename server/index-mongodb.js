@@ -1740,6 +1740,25 @@ function scheduleCleanup() {
 }
 
 
+
+// Test push notification endpoint
+app.post('/api/test-push', async (req, res) => {
+    try {
+        const { deviceId } = req.body;
+        if (!deviceId) return res.status(400).json({ error: 'deviceId required' });
+        
+        await sendPushNotification({
+            title: 'Test Bildirimi 🚀',
+            body: 'Bildirimleriniz sorunsuz çalışıyor!',
+            icon: '/icon-192.png'
+        }, deviceId);
+        
+        res.json({ message: 'Push sent to ' + deviceId });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Push notification helper function
 async function sendPushNotification(payload, deviceId = null) {
     try {

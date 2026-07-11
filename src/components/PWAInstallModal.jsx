@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Download, Bell } from 'lucide-react';
-import { settingsAPI } from '../services/api';
+import api, { settingsAPI } from '../services/api';
 import './PWAInstallModal.css';
 
 const PWAInstallModal = () => {
@@ -25,7 +25,14 @@ const PWAInstallModal = () => {
         
         // Always check notification permission first on mount (with a small delay for better UX)
         setTimeout(() => {
-            checkNotificationPermission();
+            if ('Notification' in window) {
+                if (Notification.permission === 'granted') {
+                    // Already granted, silently make sure we are subscribed to push manager
+                    handleAllowNotifications();
+                } else {
+                    checkNotificationPermission();
+                }
+            }
         }, 1000);
 
         if (standalone) {
@@ -118,12 +125,8 @@ const PWAInstallModal = () => {
                         localStorage.setItem('deviceId', deviceId);
                     }
 
-                    // Send to backend
-                    await fetch('/api/notifications/subscribe', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ deviceId, subscription })
-                    });
+                    // Send to backend using axios api instance to handle base URL correctly
+                    await api.post('/notifications/subscribe', { deviceId, subscription });
                 }
             }
         } catch (error) {

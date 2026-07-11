@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { LogOut, Calendar, Users, DollarSign, CheckCircle, XCircle, Clock, Trash2, Filter, Send, Phone, MessageSquare, ChevronRight, ChevronLeft, Plus, Scissors, X, Settings, TrendingUp } from 'lucide-react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { LogOut, Eye, Calendar, Users, DollarSign, CheckCircle, XCircle, Clock, Trash2, Filter, Send, Phone, MessageSquare, ChevronRight, ChevronLeft, Plus, Scissors, X, Settings, TrendingUp, Edit2, Menu } from 'lucide-react'
 import { adminAPI, barbersAPI, servicesAPI, settingsAPI, default as api } from '../services/api'
 import Toast from '../components/Toast'
 import './AdminPage.css'
@@ -69,11 +69,97 @@ function AdminPage() {
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, type: null, id: null, message: '' })
 
   // New states for settings
-  const [activeTab, setActiveTab] = useState('bookings') // 'bookings', 'services', 'hours', 'settings'
+  const { tab } = useParams()
+  const activeTab = tab || 'dashboard'
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  
+  const [timeFilter, setTimeFilter] = useState('monthly') 
+  const [customDateRange, setCustomDateRange] = useState({ start: '', end: '' })
+  const [chartData, setChartData] = useState([])
+    const [dashboardTotalRevenue, setDashboardTotalRevenue] = useState(0)
+    const [dashboardTotalAppointments, setDashboardTotalAppointments] = useState(0)
+  const [customers, setCustomers] = useState([]);
+  const [customerSearch, setCustomerSearch] = useState('');
+    const [selectedCustomer, setSelectedCustomer] = useState(null);
+  
+  const loadCustomers = async () => {
+    try {
+      const res = await api.get('/admin/customers');
+      setCustomers(res.data);
+    } catch (e) { console.error(e); }
+  };
+  
+  useEffect(() => {
+    if (activeTab === 'customers') loadCustomers();
+  }, [activeTab]);
+
+  useEffect(() => {
+      if (!stats || !stats.trends || !stats.bookingTrends) return;
+
+      const now = new Date();
+      let startDate = new Date(0);
+      let endDate = now;
+
+      if (timeFilter === 'weekly') startDate = addDays(now, -7);
+      else if (timeFilter === 'monthly') startDate = addDays(now, -30);
+      else if (timeFilter === '3monthly') startDate = addDays(now, -90);
+      else if (timeFilter === '6monthly') startDate = addDays(now, -180);
+      else if (timeFilter === 'custom' && customDateRange.start && customDateRange.end) {
+        startDate = new Date(customDateRange.start);
+        endDate = new Date(customDateRange.end);
+        endDate.setHours(23, 59, 59, 999);
+      }
+
+      let tRev = 0;
+      let tAppt = 0;
+      const chartMap = {};
+
+      stats.trends.forEach(t => {
+        if (!t._id || !t._id.date) return;
+        const d = parseISO(t._id.date);
+        if (isWithinInterval(d, { start: startDate, end: endDate })) {
+          tRev += t.revenue;
+          const dateStr = format(d, 'yyyy-MM-dd');
+          if (!chartMap[dateStr]) chartMap[dateStr] = { date: dateStr, revenue: 0, bookings: 0 };
+          chartMap[dateStr].revenue += t.revenue;
+        }
+      });
+
+      stats.bookingTrends.forEach(t => {
+        if (!t._id) return;
+        const d = parseISO(t._id);
+        if (isWithinInterval(d, { start: startDate, end: endDate })) {
+          tAppt += t.count;
+          const dateStr = format(d, 'yyyy-MM-dd');
+          if (!chartMap[dateStr]) chartMap[dateStr] = { date: dateStr, revenue: 0, bookings: 0 };
+          chartMap[dateStr].bookings += t.count;
+        }
+      });
+
+      const cData = Object.values(chartMap).sort((a, b) => a.date.localeCompare(b.date));
+      setChartData(cData);
+      setDashboardTotalRevenue(tRev);
+      setDashboardTotalAppointments(tAppt);
+    }, [stats, timeFilter, customDateRange]);
+
   const [allServices, setAllServices] = useState([])
   const [showServiceModal, setShowServiceModal] = useState(false)
   const [editingService, setEditingService] = useState(null)
   const [serviceForm, setServiceForm] = useState({ name: '', duration: 30, price: 0, active: true })
+
+  const [showBarberModal, setShowBarberModal] = useState(false)
+  const [editingBarber, setEditingBarber] = useState(null)
+  const [barberForm, setBarberForm] = useState({ 
+      name: '', 
+      active: true, 
+      useDefaultHours: true,
+      working_hours: {
+          weekday: { start: '09:00', end: '20:00', closed: false, breaks: [] },
+          saturday: { start: '09:00', end: '22:00', closed: false, breaks: [] },
+          sunday: { start: '10:00', end: '18:00', closed: true, breaks: [] }
+      }
+  })
+
   const [workingHours, setWorkingHours] = useState({
     weekday: { start: '09:00', end: '20:00' },
     saturday: { start: '09:00', end: '22:00' },
@@ -130,23 +216,36 @@ function AdminPage() {
       loadSpecialHours()
     })
 
-    const interval = setInterval(() => {
-      if (!document.hidden) {
-        loadBookings()
-        loadStats()
+    let lastCounts = { total: -1, pending: -1 };
+    const checkForUpdates = async () => {
+      if (document.hidden) return;
+      try {
+        const res = await adminAPI.checkUpdates();
+        const { total, pending } = res.data;
+        if (lastCounts.total === -1) {
+          // First check, just set the counts
+          lastCounts = { total, pending };
+        } else if (lastCounts.total !== total || lastCounts.pending !== pending) {
+          // Data changed, fetch new stats!
+          lastCounts = { total, pending };
+          loadBookings();
+          loadStats();
+        }
+      } catch (err) {
+        console.error('Update check error:', err);
       }
-    }, 15000)
+    };
+
+    const interval = setInterval(checkForUpdates, 15000);
 
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        loadBookings()
-        loadStats()
+        checkForUpdates();
       }
     }
 
     const handleFocus = () => {
-      loadBookings()
-      loadStats()
+      checkForUpdates();
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -419,7 +518,7 @@ function AdminPage() {
 
   const loadBarbers = async () => {
     try {
-      const response = await barbersAPI.getAll()
+      const response = await adminAPI.getBarbers()
       const barbersMap = {}
       response.data.forEach(barber => {
         // Use barber_id (1, 2) as key if available, otherwise fallback to _id
@@ -490,6 +589,60 @@ function AdminPage() {
     }
   }
 
+  
+  const handleSaveBarber = async (e) => {
+    e.preventDefault()
+    try {
+      const payload = {
+        name: barberForm.name,
+        active: barberForm.active,
+        working_hours: barberForm.useDefaultHours ? null : barberForm.working_hours
+      }
+      if (editingBarber) {
+        await api.put(`/admin/barbers/${editingBarber._id || editingBarber.id}`, payload)
+        setToast({ message: 'Koltuk güncellendi', type: 'success' })
+      } else {
+        await api.post('/admin/barbers', payload)
+        setToast({ message: 'Yeni koltuk eklendi', type: 'success' })
+      }
+      setShowBarberModal(false)
+      loadBarbers()
+    } catch (error) {
+      console.error('Barber save error:', error.response?.data || error)
+      const errorMsg = error.response?.data?.error || 'İşlem başarısız'
+      setToast({ message: `Hata: ${errorMsg}`, type: 'error' })
+    }
+  }
+
+  const handleDeleteBarber = async (id) => {
+    if (!window.confirm('Bu koltuğu silmek istediğinize emin misiniz?')) return
+    try {
+      await api.delete(`/admin/barbers/${id}`)
+      setToast({ message: 'Koltuk silindi', type: 'success' })
+      loadBarbers()
+    } catch (error) {
+      console.error('Barber delete error:', error.response?.data || error)
+      const errorMsg = error.response?.data?.error || 'Silme işlemi başarısız'
+      setToast({ message: `Hata: ${errorMsg}`, type: 'error' })
+    }
+  }
+
+  const openEditBarber = (barber) => {
+    setEditingBarber(barber)
+    setBarberForm({
+      name: barber.name,
+      active: barber.active !== false,
+      useDefaultHours: barber.working_hours == null,
+      working_hours: (barber.working_hours && barber.working_hours.weekday) ? barber.working_hours : {
+          weekday: { start: '09:00', end: '20:00', closed: false, breaks: [] },
+          saturday: { start: '09:00', end: '22:00', closed: false, breaks: [] },
+          sunday: { start: '10:00', end: '18:00', closed: true, breaks: [] }
+      }
+    })
+    setShowBarberModal(true)
+  }
+
+
   const handleUpdateService = async (e) => {
     e.preventDefault()
     try {
@@ -546,7 +699,7 @@ function AdminPage() {
       setOriginalWorkingHours(JSON.parse(JSON.stringify(workingHours)))
       setToast({ message: 'Çalışma saatleri güncellendi', type: 'success' })
       if (unsavedModal.isOpen && unsavedModal.targetTab) {
-        setActiveTab(unsavedModal.targetTab)
+        navigate(`/admin/${unsavedModal.targetTab}`)
         setUnsavedModal({ isOpen: false, targetTab: null })
       }
     } catch (error) {
@@ -640,7 +793,7 @@ function AdminPage() {
       setOriginalGeneralSettings(JSON.parse(JSON.stringify(generalSettings)))
       setToast({ message: 'Ayarlar kaydedildi', type: 'success' })
       if (unsavedModal.isOpen && unsavedModal.targetTab) {
-        setActiveTab(unsavedModal.targetTab)
+        navigate(`/admin/${unsavedModal.targetTab}`)
         setUnsavedModal({ isOpen: false, targetTab: null })
       }
     } catch (error) {
@@ -1048,6 +1201,7 @@ function AdminPage() {
   }
 
   const handleTabChange = (targetTab) => {
+    setIsMobileMenuOpen(false)
     if (activeTab === targetTab) return
 
     let isDirty = false
@@ -1060,7 +1214,7 @@ function AdminPage() {
     if (isDirty) {
       setUnsavedModal({ isOpen: true, targetTab })
     } else {
-      setActiveTab(targetTab)
+      navigate(`/admin/${targetTab}`)
     }
   }
 
@@ -1128,7 +1282,7 @@ function AdminPage() {
     } else if (activeTab === 'settings') {
       if (originalGeneralSettings) setGeneralSettings(JSON.parse(JSON.stringify(originalGeneralSettings)))
     }
-    setActiveTab(unsavedModal.targetTab)
+    navigate(`/admin/${unsavedModal.targetTab}`)
     setUnsavedModal({ isOpen: false, targetTab: null })
   }
 
@@ -1205,15 +1359,47 @@ function AdminPage() {
   }
 
   return (
-    <div className="admin-page versace-vertical-border versace-vertical-border-right">
-      <header className="admin-header">
-        <div className="container header-inner">
-          <div className="header-title">
-            <h1>Admin</h1>
-            <p className="header-sub">14 günlük takvim, mobil öncelikli</p>
+    <div className="admin-layout">
+      <div className={`mobile-overlay ${isMobileMenuOpen ? 'show' : ''}`} onClick={() => setIsMobileMenuOpen(false)}></div>
+        <aside className={`admin-sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
+        <div className="sidebar-brand" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+          <div>
+            <h2>Hairlogy</h2>
+            <span className="badge">Admin</span>
           </div>
-          <div className="header-actions">
-            <button
+          {isMobileMenuOpen && (
+            <button className="mobile-close-btn" onClick={() => setIsMobileMenuOpen(false)} style={{background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: '5px'}}>
+              <X size={24} />
+            </button>
+          )}
+        </div>
+        <nav className="sidebar-nav">
+          <button className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleTabChange('dashboard')}><TrendingUp size={18} /><span>Dashboard</span></button>
+          <button className={`nav-item ${activeTab === 'bookings' ? 'active' : ''}`} onClick={() => handleTabChange('bookings')}><Calendar size={18} /><span>Randevular</span></button>
+          <button className={`nav-item ${activeTab === 'barbers' ? 'active' : ''}`} onClick={() => handleTabChange('barbers')}><Users size={18} /><span>Koltuk Yönetimi</span></button>
+          <button className={`nav-item ${activeTab === 'customers' ? 'active' : ''}`} onClick={() => handleTabChange('customers')}><Users size={18} /><span>Müşteriler</span></button>
+          <button className={`nav-item ${activeTab === 'services' ? 'active' : ''}`} onClick={() => handleTabChange('services')}><Scissors size={18} /><span>Hizmetler</span></button>
+          <button className={`nav-item ${activeTab === 'hours' ? 'active' : ''}`} onClick={() => handleTabChange('hours')}><Clock size={18} /><span>Çalışma Saatleri</span></button>
+          <button className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => handleTabChange('settings')}><Settings size={18} /><span>Genel Ayarlar</span></button>
+        </nav>
+        <div className="sidebar-footer">
+          <button onClick={handleLogout} className="logout-btn">
+            <LogOut size={18} />
+            <span>Çıkış Yap</span>
+          </button>
+        </div>
+      </aside>
+
+      <div className="admin-content">
+        <header className="admin-topbar">
+          <div className="topbar-left">
+              <button className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+                <Menu size={24} />
+              </button>
+              <h2>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h2>
+          </div>
+          <div className="topbar-right">
+             <button
               className={`maintenance-toggle-btn ${maintenanceMode ? 'active' : ''}`}
               onClick={handleToggleMaintenance}
               disabled={maintenanceLoading}
@@ -1222,59 +1408,172 @@ function AdminPage() {
               <Settings size={18} className={maintenanceLoading ? 'spin' : ''} />
               <span>{maintenanceMode ? 'Bakımı Kapat' : 'Siteyi Bakıma Al'}</span>
             </button>
-            <button
-              className="create-booking-btn"
-              onClick={() => setShowCreateBookingModal(true)}
-              title="Yeni Randevu Oluştur"
-            >
-              <Plus size={18} />
-              <span>Randevu Ekle</span>
-            </button>
-            <button className="refresh-btn outline" onClick={() => loadBookings(showAllBookings)}>Yenile</button>
-            <button onClick={handleLogout} className="logout-btn">
-              <LogOut size={18} />
-              <span>Çıkış</span>
+            <button className="create-booking-btn" onClick={() => setShowCreateBookingModal(true)}>
+              <Plus size={18} /> Yeni Randevu
             </button>
           </div>
-        </div>
-      </header>
-
-      {/* Tab Navigation */}
-      <nav className="admin-tabs">
-        <div className="container">
-          <button
-            className={`tab-btn ${activeTab === 'bookings' ? 'active' : ''}`}
-            onClick={() => handleTabChange('bookings')}
-          >
-            <Calendar size={16} />
-            <span>Randevular</span>
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'services' ? 'active' : ''}`}
-            onClick={() => handleTabChange('services')}
-          >
-            <Scissors size={16} />
-            <span>Hizmetler</span>
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'hours' ? 'active' : ''}`}
-            onClick={() => handleTabChange('hours')}
-          >
-            <Clock size={16} />
-            <span>Saatler</span>
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
-            onClick={() => handleTabChange('settings')}
-          >
-            <Settings size={16} />
-            <span>Ayarlar</span>
-          </button>
-        </div>
-      </nav>
+        </header>
 
       <main className="admin-main">
         <div className="container">
+          {/* ============ DASHBOARD TAB ============ */}
+          {activeTab === 'dashboard' && (
+            <div className="dashboard-tab">
+               <div className="time-filter-section" style={{marginBottom: '20px', padding: '15px', backgroundColor: '#1e1e1e', borderRadius: '8px', border: '1px solid #333'}}>
+                  <div className="filter-buttons" style={{display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '15px'}}>
+                    {['weekly', 'monthly', '3monthly', '6monthly', 'alltime', 'custom'].map(f => (
+                       <button 
+                         key={f} 
+                         className={`btn-secondary ${timeFilter === f ? 'active' : ''}`}
+                         style={timeFilter === f ? {backgroundColor: '#D4AF37', color: '#000'} : {}}
+                         onClick={() => setTimeFilter(f)}
+                       >
+                         {f === 'weekly' && 'Haftalık'}
+                         {f === 'monthly' && 'Aylık'}
+                         {f === '3monthly' && '3 Aylık'}
+                         {f === '6monthly' && '6 Aylık'}
+                         {f === 'alltime' && 'Tüm Zamanlar'}
+                         {f === 'custom' && 'Özel Tarih'}
+                       </button>
+                    ))}
+                  </div>
+                  
+                  {timeFilter === 'custom' && (
+                     <div className="custom-date-picker" style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
+                       <div>
+                         <label style={{display: 'block', fontSize: '0.8rem', color: '#aaa', marginBottom: '5px'}}>Başlangıç:</label>
+                         <input type="date" className="search-input" value={customDateRange.start} onChange={e => setCustomDateRange({...customDateRange, start: e.target.value})} />
+                       </div>
+                       <div>
+                         <label style={{display: 'block', fontSize: '0.8rem', color: '#aaa', marginBottom: '5px'}}>Bitiş:</label>
+                         <input type="date" className="search-input" value={customDateRange.end} onChange={e => setCustomDateRange({...customDateRange, end: e.target.value})} />
+                       </div>
+                     </div>
+                  )}
+               </div>
+
+               <div className="stats-grid">
+                  <div className="stat-card">
+                    <div className="stat-icon"><DollarSign /></div>
+                    <div className="stat-info">
+                      <p>Seçilen Aralık Cirosu</p>
+                      <h3 style={{color: '#D4AF37'}}>{dashboardTotalRevenue || 0}₺</h3>
+                    </div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-icon"><Calendar /></div>
+                    <div className="stat-info">
+                      <p>Seçilen Aralık Randevuları</p>
+                      <h3>{dashboardTotalAppointments || 0}</h3>
+                    </div>
+                  </div>
+               </div>
+            </div>
+          )}
+
+          {/* ============ MÜŞTERİLER TAB ============ */}
+          {activeTab === 'customers' && (
+            <div className="customers-tab card">
+               <div className="section-header">
+                 <div>
+                   <h3>Müşteri Listesi</h3>
+                   <p className="muted">Geçmiş randevu alan tüm müşteriler</p>
+                 </div>
+                 <input 
+                   type="text" 
+                   placeholder="İsim veya telefon ile ara..." 
+                   value={customerSearch}
+                   onChange={e => setCustomerSearch(e.target.value)}
+                   className="search-input"
+                 />
+               </div>
+               <div className="table-responsive">
+                 <table className="data-table">
+                     <thead>
+                       <tr>
+                         <th>Müşteri Adı</th>
+                         <th>Telefon</th>
+                         <th>Toplam Randevu</th>
+                         <th>Son Randevu Tarihi</th>
+                         <th></th>
+                       </tr>
+                     </thead>
+                     <tbody>
+                       {(Array.isArray(customers) ? customers : []).filter(c => 
+                         String(c.name || '').toLowerCase().includes(customerSearch.toLowerCase()) || 
+                         String(c.phone || '').includes(customerSearch) || 
+                         String(c.last_booking || '').includes(customerSearch)
+                       ).map((c, i) => (
+                         <tr key={i}>
+                           <td>{c.name}</td>
+                           <td>{c.phone}</td>
+                           <td>{c.total_bookings}</td>
+                           <td>{c.last_booking}</td>
+                           <td>
+                             <button className="customer-eye-btn" onClick={() => setSelectedCustomer(c)}>
+                               <Eye size={20} />
+                             </button>
+                           </td>
+                         </tr>
+                       ))}
+                       {Array.isArray(customers) && customers.length === 0 && <tr><td colSpan="5" className="text-center muted">Müşteri bulunamadı.</td></tr>}
+                     </tbody>
+                   </table>
+               </div>
+            </div>
+          )}
+
+          {/* ============ KOLTUK / BERBER TAB ============ */}
+          {activeTab === 'barbers' && (
+            <div className="barbers-tab card">
+               <div className="section-header">
+                 <div>
+                   <h3>Koltuk Yönetimi</h3>
+                   <p className="muted">Sistemdeki koltukları (berberleri) yönetin</p>
+                 </div>
+                 <button className="btn-primary" onClick={() => {
+                   setEditingBarber(null)
+                   setBarberForm({ 
+                     name: '', 
+                     active: true, 
+                     useDefaultHours: true,
+                     working_hours: {
+                       weekday: { start: '09:00', end: '20:00', closed: false, breaks: [] },
+                       saturday: { start: '09:00', end: '22:00', closed: false, breaks: [] },
+                       sunday: { start: '10:00', end: '18:00', closed: true, breaks: [] }
+                     }
+                   })
+                   setShowBarberModal(true)
+                 }}>
+                   <Plus size={16} />
+                   <span>Yeni Koltuk Ekle</span>
+                 </button>
+               </div>
+               <div className="barbers-grid">
+                  {Object.values(barbers).map((b, i) => (
+                     <div key={i} className="barber-card card">
+                        <div className="barber-card-header">
+                          <h4>{b.name}</h4>
+                          <span className={`status-badge ${b.active ? 'success' : 'error'}`}>{b.active ? 'Aktif' : 'Pasif'}</span>
+                        </div>
+                        <p className="muted" style={{marginBottom: '1rem'}}>Koltuk No: {b.barber_id}</p>
+                        
+                        <div className="barber-card-actions">
+                          <button className="icon-btn" onClick={() => {
+                            openEditBarber(b)
+                          }} title="Düzenle">
+                            <Edit2 size={16} />
+                          </button>
+                          <button className="icon-btn danger" onClick={() => handleDeleteBarber(b._id || b.id)} title="Sil">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                     </div>
+                  ))}
+               </div>
+            </div>
+          )}
+
 
           {/* ============ RANDEVULAR TAB ============ */}
           {activeTab === 'bookings' && (
@@ -1497,6 +1796,61 @@ function AdminPage() {
                 )}
               </section>
             </>
+          )}
+
+          {/* ============ MÜŞTERİLER TAB ============ */}
+          {activeTab === 'customers' && (
+            <section className="card customers-management-card">
+              <div className="section-header">
+                <div>
+                  <h3>Müşteriler</h3>
+                  <p className="muted">Sistemde kayıtlı müşteriler ve randevu geçmişleri</p>
+                </div>
+                <div className="filter-group">
+                  <div className="search-box">
+                    <input
+                      type="text"
+                      placeholder="İsim veya telefon ara..."
+                      value={customerSearch}
+                      onChange={(e) => setCustomerSearch(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="table-responsive">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Müşteri Adı</th>
+                      <th>Telefon</th>
+                      <th>Toplam Randevu</th>
+                      <th>Son Randevu Tarihi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customers
+                      .filter(c => 
+                        (c.name || '').toLowerCase().includes(customerSearch.toLowerCase()) || 
+                        (c.phone || '').includes(customerSearch)
+                      )
+                      .map((customer, index) => (
+                      <tr key={customer._id || index}>
+                        <td><strong>{customer.name || 'İsimsiz'}</strong></td>
+                        <td>{customer.phone}</td>
+                        <td><span className="badge" style={{background: '#c8a45a', color: '#000'}}>{customer.total_bookings} Randevu</span></td>
+                        <td>{customer.last_booking ? new Date(customer.last_booking).toLocaleDateString('tr-TR') : '-'}</td>
+                      </tr>
+                    ))}
+                    {customers.length === 0 && (
+                      <tr>
+                        <td colSpan="4" className="empty-cell">Henüz müşteri bulunmuyor</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
           )}
 
           {/* ============ HİZMETLER TAB ============ */}
@@ -2099,32 +2453,7 @@ function AdminPage() {
         </div>
       )}
 
-      {/* Daily Report Section */}
-      <div className="daily-report-section">
-        <div className="container">
-          <div className="daily-report-card">
-            <h3>Günlük Rapor Gönder</h3>
-            <p>Seçtiğiniz gündeki tüm randevular bilgileriyle beraber admin emailine gönderilir.</p>
-            <div className="report-form">
-              <input
-                type="date"
-                value={reportDate}
-                onChange={(e) => setReportDate(e.target.value)}
-                max={format(addDays(new Date(), 13), 'yyyy-MM-dd')}
-                min={format(new Date(), 'yyyy-MM-dd')}
-                className="report-date-input"
-              />
-              <button
-                onClick={handleSendDailyReport}
-                disabled={sendingReport || !reportDate}
-                className="send-report-btn"
-              >
-                {sendingReport ? 'Gönderiliyor...' : 'Raporu Email Gönder'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+
       {/* Service Modal */}
       {
         showServiceModal && (
@@ -2411,7 +2740,87 @@ function AdminPage() {
           </div>
         </div>
       )}
-    </div >
+
+      {/* BERBER/KOLTUK MODAL */}
+      {showBarberModal && (
+        <div className="modal-overlay" onClick={() => setShowBarberModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{editingBarber ? 'Koltuk Düzenle' : 'Yeni Koltuk Ekle'}</h2>
+              <button className="modal-close" onClick={() => setShowBarberModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+            <form className="create-booking-form" onSubmit={handleSaveBarber}>
+              <div className="form-group">
+                <label>Koltuk / Berber Adı</label>
+                <input
+                  type="text"
+                  value={barberForm.name}
+                  onChange={e => setBarberForm({...barberForm, name: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <label className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    id="barber_active"
+                    checked={barberForm.active}
+                    onChange={e => setBarberForm({...barberForm, active: e.target.checked})}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+                <label htmlFor="barber_active" style={{ margin: 0, cursor: 'pointer' }}>Aktif (Randevu Alınabilir)</label>
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn-secondary" onClick={() => setShowBarberModal(false)}>İptal</button>
+                <button type="submit" className="btn-primary" >
+                  'Kaydet'
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      
+            {selectedCustomer && (
+              <div className="modal-overlay" onClick={() => setSelectedCustomer(null)}>
+                <div className="modal-content" onClick={e => e.stopPropagation()}>
+                  <div className="modal-header">
+                    <h2>Müşteri Detayları</h2>
+                    <button className="modal-close" onClick={() => setSelectedCustomer(null)}><X size={24} /></button>
+                  </div>
+                  <div className="modal-body customer-modal-details">
+                    <div className="detail-row">
+                      <strong>Ad Soyad:</strong>
+                      <span>{selectedCustomer.name}</span>
+                    </div>
+                    <div className="detail-row">
+                      <strong>Telefon:</strong>
+                      <span>{selectedCustomer.phone}</span>
+                    </div>
+                    {selectedCustomer.email && (
+                      <div className="detail-row">
+                        <strong>E-posta:</strong>
+                        <span>{selectedCustomer.email}</span>
+                      </div>
+                    )}
+                    <div className="detail-row">
+                      <strong>Toplam Randevu:</strong>
+                      <span>{selectedCustomer.total_bookings}</span>
+                    </div>
+                    <div className="detail-row">
+                      <strong>Son Randevu:</strong>
+                      <span>{selectedCustomer.last_booking}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+</div>
+    </div>
   )
 }
 

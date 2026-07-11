@@ -8,6 +8,7 @@ import StatisticsPage from './pages/StatisticsPage'
 import BarberSelectPage from './pages/BarberSelectPage'
 import MaintenancePage from './pages/MaintenancePage'
 import LoadingScreen from './components/LoadingScreen'
+import PWAInstallModal from './components/PWAInstallModal'
 import { settingsAPI } from './services/api'
 import './App.css'
 import './styles/greek-key-patterns.css'
@@ -16,6 +17,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   // Bakım Modu Ayarı - Gerçek ortamda backendden veya env'den çekilebilir
   const [maintenanceMode, setMaintenanceMode] = useState(false)
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
 
   useEffect(() => {
     // 1. Check maintenance mode
@@ -64,6 +66,7 @@ function App() {
           <Routes>
             {/* Admin paneli her zaman aktif kalmalı */}
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/admin/:tab" element={<AdminPage />} />
             <Route path="/admin/stats" element={<StatisticsPage />} />
 
             {/* Bakım modu aktifse tüm sayfalar Bakım Sayfasına yönlenir */}
@@ -71,6 +74,14 @@ function App() {
               <>
                 <Route path="/" element={<MaintenancePage />} />
                 <Route path="*" element={<MaintenancePage />} />
+              </>
+            ) : isStandalone ? (
+              <>
+                <Route path="/" element={<BarberSelectPage />} />
+                <Route path="/berber-sec" element={<BarberSelectPage />} />
+                <Route path="/randevu" element={<BookingPage />} />
+                <Route path="/randevu/:barberId" element={<BookingPage />} />
+                <Route path="*" element={<BarberSelectPage />} />
               </>
             ) : (
               <>
@@ -81,6 +92,7 @@ function App() {
               </>
             )}
           </Routes>
+          <PWAInstallModal />
         </div>
       </Router>
     </LanguageProvider>

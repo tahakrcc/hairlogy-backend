@@ -11,7 +11,11 @@ const barberSchema = new mongoose.Schema({
         tiktok: String,
         youtube: String
     },
-    active: { type: Boolean, default: true }
+    active: { type: Boolean, default: true },
+    working_hours: {
+        type: mongoose.Schema.Types.Mixed,
+        default: null // null ise global dükkan saatlerini ve global molaları kullanır
+    }
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
 const serviceSchema = new mongoose.Schema({
@@ -38,6 +42,7 @@ const bookingSchema = new mongoose.Schema({
     appointment_date: { type: String, required: true }, // YYYY-MM-DD
     appointment_time: { type: String, required: true }, // HH:mm
     device_token: String,
+    deviceId: String,
     status: {
         type: String,
         enum: ['pending', 'confirmed', 'completed', 'cancelled'],
@@ -59,6 +64,7 @@ bookingSchema.index(
 
 // Performance index for batch queries
 bookingSchema.index({ appointment_date: 1, barber_id: 1, status: 1 });
+bookingSchema.index({ barber_id: 1, status: 1 }); // Used in admin stats
 
 const closedDateSchema = new mongoose.Schema({
     start_date: { type: String, required: true }, // YYYY-MM-DD
@@ -78,6 +84,11 @@ const deviceTokenSchema = new mongoose.Schema({
     booking_count: { type: Number, default: 0 }
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
+const webPushSubscriptionSchema = new mongoose.Schema({
+    deviceId: { type: String, required: true, unique: true },
+    subscription: { type: mongoose.Schema.Types.Mixed, required: true }
+}, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
+
 const revenueHistorySchema = new mongoose.Schema({
     booking_id: String,
     barber_id: mongoose.Schema.Types.Mixed,
@@ -87,6 +98,10 @@ const revenueHistorySchema = new mongoose.Schema({
     customer_name: String,
     service_name: String
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
+
+// Indices for RevenueHistory to speed up queries
+revenueHistorySchema.index({ booking_id: 1 });
+revenueHistorySchema.index({ appointment_date: 1, barber_id: 1 });
 
 const systemSettingSchema = new mongoose.Schema({
     key: { type: String, required: true, unique: true },
@@ -101,6 +116,7 @@ export const AdminUser = mongoose.model('AdminUser', adminUserSchema);
 export const Booking = mongoose.model('Booking', bookingSchema);
 export const ClosedDate = mongoose.model('ClosedDate', closedDateSchema);
 export const DeviceToken = mongoose.model('DeviceToken', deviceTokenSchema);
+export const WebPushSubscription = mongoose.model('WebPushSubscription', webPushSubscriptionSchema);
 export const RevenueHistory = mongoose.model('RevenueHistory', revenueHistorySchema);
 export const SystemSetting = mongoose.model('SystemSetting', systemSettingSchema);
 
@@ -123,3 +139,10 @@ specialWorkingHoursSchema.index({ date: 1, barber_id: 1 });
 
 export const DailyStats = mongoose.model('DailyStats', dailyStatsSchema);
 export const SpecialWorkingHours = mongoose.model('SpecialWorkingHours', specialWorkingHoursSchema);
+
+const pushSubscriptionSchema = new mongoose.Schema({
+    deviceId: { type: String, required: true, unique: true },
+    subscription: { type: mongoose.Schema.Types.Mixed, required: true },
+    createdAt: { type: Date, default: Date.now }
+});
+export const PushSubscription = mongoose.model('PushSubscription', pushSubscriptionSchema);

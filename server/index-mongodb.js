@@ -12,6 +12,10 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const webpush = require('web-push');
+const cron = require('node-cron');
+
 import {
     Barber,
     Service,
@@ -22,10 +26,19 @@ import {
     RevenueHistory,
     SystemSetting,
     DailyStats,
-    SpecialWorkingHours
+    SpecialWorkingHours,
+    PushSubscription
 } from './models.js';
 
 dotenv.config({ path: path.join(__dirname, '.env') });
+
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails(
+        'mailto:hairlogyyasin@gmail.com',
+        process.env.VAPID_PUBLIC_KEY,
+        process.env.VAPID_PRIVATE_KEY
+    );
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -1148,6 +1161,165 @@ app.get('/api/admin/stats', verifyToken, async (req, res) => {
     }
 });
 
+
+// ============ CUSTOMERS ============
+app.get('/api/admin/customers', verifyToken, async (req, res) => {
+    try {
+        const pipeline = [
+            {
+                $group: {
+                    _id: "$customer_phone",
+                    name: { $first: "$customer_name" },
+                    phone: { $first: "$customer_phone" },
+                    email: { $first: "$customer_email" },
+                    total_bookings: { $sum: 1 },
+                    last_booking: { $max: "$appointment_date" }
+                }
+            },
+            { $sort: { last_booking: -1 } }
+        ];
+        const customers = await Booking.aggregate(pipeline);
+        res.json(customers);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+// ============ BARBERS ============
+app.get('/api/admin/barbers', verifyToken, async (req, res) => {
+    try {
+        const barbers = await Barber.find();
+        res.json(barbers.map(b => {
+            const obj = b.toObject();
+            obj.id = obj._id;
+            return obj;
+        }));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+
+app.post('/api/admin/barbers', verifyToken, async (req, res) => {
+    try {
+        // Auto-increment barber_id
+        const lastBarber = await Barber.findOne().sort({ barber_id: -1 });
+        const nextId = lastBarber && lastBarber.barber_id ? lastBarber.barber_id + 1 : 1;
+        
+        const barberData = { ...req.body, barber_id: nextId };
+        const barber = new Barber(barberData);
+        await barber.save();
+        res.json({ message: 'Barber created', id: barber._id });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/admin/barbers/:id', verifyToken, async (req, res) => {
+    try {
+        await Barber.findByIdAndUpdate(req.params.id, req.body);
+        res.json({ message: 'Barber updated' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/admin/barbers/:id', verifyToken, async (req, res) => {
+    try {
+        await Barber.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Barber deleted' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============ SERVICES ============
+app.get('/api/admin/services', verifyToken, async (req, res) => {
+    try {
+        const services = await Service.find().sort({ order: 1 });
+        res.json(services.map(s => {
+            const obj = s.toObject();
+            obj.id = obj._id;
+            return obj;
+        }));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/admin/services', verifyToken, async (req, res) => {
+    try {
+        const service = new Service(req.body);
+        await service.save();
+        res.json({ message: 'Service created', id: service._id });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/admin/services/:id', verifyToken, async (req, res) => {
+    try {
+        await Service.findByIdAndUpdate(req.params.id, req.body);
+        res.json({ message: 'Service updated' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/admin/services/:id', verifyToken, async (req, res) => {
+    try {
+        await Service.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Service deleted' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============ WORKING HOURS ============
+app.get('/api/admin/settings/working-hours', verifyToken, async (req, res) => {
+    try {
+        const setting = await SystemSetting.findOne({ key: 'working_hours' });
+        if (setting && setting.value) {
+            res.json(setting.value);
+        } else {
+            // Default working hours
+            res.json({
+                weekday: { start: '09:00', end: '20:00', breaks: [] },
+                saturday: { start: '09:00', end: '20:00', breaks: [] },
+                sunday: { start: '10:00', end: '18:00', breaks: [], closed: false },
+                slotDuration: 60
+            });
+        }
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/admin/settings/working-hours', verifyToken, async (req, res) => {
+    try {
+        await SystemSetting.findOneAndUpdate(
+            { key: 'working_hours' },
+            { value: req.body, updated_at: Date.now() },
+            { upsert: true }
+        );
+        res.json({ message: 'Working hours updated' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+
+// ============ UPDATES CHECK ============
+app.get('/api/admin/check-updates', verifyToken, async (req, res) => {
+    try {
+        const [total, pending] = await Promise.all([
+            Booking.countDocuments(),
+            Booking.countDocuments({ status: 'pending' })
+        ]);
+        res.json({ total, pending });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+
+// ============ PUSH NOTIFICATIONS ============
+app.post('/api/notifications/subscribe', async (req, res) => {
+    try {
+        const { deviceId, subscription } = req.body;
+        
+        await PushSubscription.findOneAndUpdate(
+            { deviceId },
+            { subscription, createdAt: new Date() },
+            { upsert: true, new: true }
+        );
+        
+        res.status(201).json({});
+    } catch (error) {
+        console.error('Subscription error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.get('/api/admin/closed-dates', verifyToken, async (req, res) => {
     try {
         const dates = await ClosedDate.find().sort({ start_date: 1 });
@@ -1556,4 +1728,35 @@ function scheduleCleanup() {
 // All other GET requests not handled before will return our React app
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../dist', 'index.html'));
+});
+
+// ============ 1-HOUR REMINDER CRON JOB ============
+cron.schedule('* * * * *', async () => {
+    try {
+        const now = new Date();
+        const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+        
+        // Find bookings exactly 1 hour from now
+        // Note: appointment_date is YYYY-MM-DD, appointment_time is HH:mm
+        const dateStr = oneHourFromNow.toISOString().split('T')[0];
+        const hours = String(oneHourFromNow.getHours()).padStart(2, '0');
+        const minutes = String(oneHourFromNow.getMinutes()).padStart(2, '0');
+        const timeStr = `${hours}:${minutes}`;
+
+        const upcomingBookings = await Booking.find({
+            appointment_date: dateStr,
+            appointment_time: timeStr,
+            status: 'pending' // or approved, based on your logic
+        });
+
+        for (const booking of upcomingBookings) {
+            sendPushNotification({
+                title: 'Hatırlatma: Randevunuza 1 Saat Kaldı!',
+                body: `Sayın ${booking.customer_name}, ${booking.appointment_time} saatindeki randevunuz için lütfen zamanında kuaförümüzde olun.`,
+                icon: '/icon-192.png'
+            });
+        }
+    } catch (err) {
+        console.error('Cron job error:', err);
+    }
 });

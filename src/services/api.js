@@ -98,6 +98,8 @@ export const adminAPI = {
   transferBooking: (id) => api.post(`/admin/bookings/${id}/transfer`),
   sendReminder: (id) => api.post(`/admin/bookings/${id}/reminder`),
   sendDailyReport: (date) => api.post('/admin/daily-report', { date }),
+  checkUpdates: () => api.get('/admin/check-updates'),
+  getCustomers: () => api.get('/admin/customers'),
   // Closed Dates API
   getClosedDates: () => api.get('/admin/closed-dates'),
   createClosedDate: (data) => api.post('/admin/closed-dates', data),
@@ -105,6 +107,7 @@ export const adminAPI = {
   toggleDate: (date, barberId, reason) => api.post('/admin/toggle-date', { date, barberId, reason }),
   // Services CRUD
   getServices: () => api.get('/admin/services'),
+  getBarbers: () => api.get('/admin/barbers'),
   createService: (data) => api.post('/admin/services', data),
   updateService: (id, data) => api.put(`/admin/services/${id}`, data),
   deleteService: (id) => api.delete(`/admin/services/${id}`),

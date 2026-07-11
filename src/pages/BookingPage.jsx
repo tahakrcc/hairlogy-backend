@@ -513,10 +513,11 @@ function BookingPage() {
     try {
       const dateStr = format(selectedDate, 'yyyy-MM-dd')
       const deviceToken = getOrCreateDeviceToken()
+      const deviceId = localStorage.getItem('deviceId')
 
       const bookingResponse = await bookingsAPI.create({
-        barberId: parseInt(selectedBarber || barberId),
-        barberName: barber ? barber.name : '',
+        barberId: isUnifiedMode ? 0 : parseInt(barberId),
+        barberName: isUnifiedMode ? 'Otomatik Atama' : (barber ? barber.name : ''),
         serviceName: selectedService.name,
         servicePrice: selectedService.price,
         customerName: formData.name,
@@ -524,7 +525,8 @@ function BookingPage() {
         customerEmail: formData.email || null,
         appointmentDate: dateStr,
         appointmentTime: selectedTime,
-        deviceToken: deviceToken
+        deviceToken: deviceToken,
+        deviceId: deviceId
       })
 
       const dateStrFormatted = getFormattedDate(selectedDate).fullDate
@@ -849,20 +851,7 @@ function BookingPage() {
                                 ) : isAlmostFull ? (
                                   <span className="availability-badge almost-badge">{t('booking.step1.almostFull')}</span>
                                 ) : (
-                                  isUnifiedMode && availability.barberCounts && Object.keys(availability.barberCounts).length > 0 ? (
-                                    <div className="unified-availability-badges">
-                                      {Object.entries(availability.barberCounts).map(([bId, count]) => {
-                                        if (!barbers[bId]) return null;
-                                        return (
-                                          <span key={bId} className="availability-badge available-badge" style={{ fontSize: '0.7rem', padding: '2px 6px', marginBottom: '2px' }}>
-                                            {barbers[bId].name.split(' ')[0]}: {count}
-                                          </span>
-                                        );
-                                      })}
-                                    </div>
-                                  ) : (
-                                    <span className="availability-badge available-badge">{availability.available} {t('booking.step1.available')}</span>
-                                  )
+                                  <span className="availability-badge available-badge">{availability.available} {t('booking.step1.available')}</span>
                                 )}
                               </div>
                             )}
@@ -973,19 +962,7 @@ function BookingPage() {
                                   e.preventDefault()
                                   e.stopPropagation()
                                   if (!isDisabled) {
-                                    if (isUnifiedMode && !selectedBarber) {
-                                      if (currentAvailableBarberIds.length === 1) {
-                                        setSelectedBarber(currentAvailableBarberIds[0])
-                                        handleTimeSelect(time)
-                                      } else if (currentAvailableBarberIds.length > 1) {
-                                        setPendingTimeForBarber(time)
-                                        setShowBarberSelectModal(true)
-                                      } else {
-                                        handleTimeSelect(time)
-                                      }
-                                    } else {
-                                      handleTimeSelect(time)
-                                    }
+                                    handleTimeSelect(time)
                                   } else {
                                     // Show feedback when trying to click disabled slot
                                     if (isBreakTimeSlot) {
@@ -1004,7 +981,7 @@ function BookingPage() {
                                 <span className="time-slot-time">{time}</span>
                                 {isUnifiedMode && !selectedBarber && isAvailable && !isPastTime && !isBooked && (
                                   <span className="unified-availability-label">
-                                    {hasMultipleBarbers ? 'İki Uzman da Boş' : (hasSingleBarber ? `Sadece ${singleBarberName} Boş` : '')}
+                                    {currentAvailableBarberIds.length} Koltuk Boş
                                   </span>
                                 )}
                                 {isBreakTime && <span className="time-slot-label">Yemek Molası</span>}
@@ -1272,43 +1249,6 @@ function BookingPage() {
         </div>
       )}
 
-      {/* Barber Select Modal for Unified Booking */}
-      {showBarberSelectModal && (
-        <div className="modal-overlay" onClick={() => {
-          setShowBarberSelectModal(false)
-          setPendingTimeForBarber(null)
-        }}>
-          <div className="modal-content barber-select-modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header-elegant">
-              <h3>{t('booking.step2.title')}</h3>
-              <p>{pendingTimeForBarber} saati için uzmanlarımız müsaittir.<br />Lütfen işlemi yapacak uzmanı seçiniz.</p>
-            </div>
-            <div className="barber-selection-grid">
-              {(barberAvailability[pendingTimeForBarber] || []).map(bId => {
-                const b = barbers[bId]
-                if (!b) return null
-                return (
-                  <button key={bId} className="barber-select-card" onClick={() => {
-                    setSelectedBarber(bId)
-                    handleTimeSelect(pendingTimeForBarber)
-                    setShowBarberSelectModal(false)
-                    setPendingTimeForBarber(null)
-                  }}>
-                    <strong className="barber-select-name">{b.name}</strong>
-                    <span className="barber-select-action">Seç ve İlerle</span>
-                  </button>
-                )
-              })}
-            </div>
-            <button className="golden-button w-100 mt-4" onClick={() => {
-              setShowBarberSelectModal(false)
-              setPendingTimeForBarber(null)
-            }}>
-              <span className="golden-text">İptal</span>
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Toast Notification */}
       {toast && (

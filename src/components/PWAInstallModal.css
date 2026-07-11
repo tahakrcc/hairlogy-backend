@@ -1,0 +1,165 @@
+/* PWAInstallModal.css */
+.pwa-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+}
+
+.pwa-modal-content {
+    background-color: #1a1a1a;
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 1rem;
+    width: 100%;
+    max-width: 24rem;
+    padding: 1.5rem;
+    position: relative;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 15px rgba(212, 175, 55, 0.2);
+    text-align: center;
+}
+
+.pwa-modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.pwa-modal-close:hover {
+    color: #ffffff;
+}
+
+.pwa-icon-container {
+    width: 4rem;
+    height: 4rem;
+    background-color: #2a2a2a;
+    border-radius: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem auto;
+    border: 1px solid rgba(212, 175, 55, 0.5);
+    color: #d4af37;
+}
+
+.pwa-modal-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+}
+
+.pwa-modal-text {
+    color: #9ca3af;
+    font-size: 0.875rem;
+    margin-bottom: 1.5rem;
+    line-height: 1.4;
+}
+
+.pwa-action-btn {
+    width: 100%;
+    background: linear-gradient(to right, #d4af37, #f3e5ab);
+    color: #000000;
+    font-weight: bold;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1rem;
+}
+.pwa-action-btn:hover {
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+    transform: scale(1.02);
+}
+
+.pwa-cancel-btn {
+    width: 100%;
+    background: none;
+    border: none;
+    color: #9ca3af;
+    font-size: 0.875rem;
+    padding: 0.5rem;
+    margin-top: 0.75rem;
+    cursor: pointer;
+}
+.pwa-cancel-btn:hover {
+    color: #ffffff;
+}
+
+/* Floating Button */
+.pwa-floating-btn {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 1rem;
+    z-index: 99998;
+    background: linear-gradient(to right, #d4af37, #f3e5ab);
+    color: #000000;
+    padding: 0.75rem;
+    border-radius: 9999px;
+    border: none;
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+.pwa-floating-btn:hover {
+    transform: scale(1.05);
+}
+.pwa-floating-btn:active {
+    transform: scale(0.95);
+}
+
+.pwa-floating-btn-text {
+    font-weight: bold;
+    font-size: 0.875rem;
+    padding-right: 0.25rem;
+}
+
+@media (max-width: 640px) {
+    .pwa-floating-btn-text {
+        display: none;
+    }
+}
+
+/* iOS Instructions */
+.pwa-ios-steps {
+    text-align: left;
+    margin-bottom: 1.5rem;
+    margin-top: 1rem;
+}
+.pwa-ios-step {
+    color: #d1d5db;
+    font-size: 0.875rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+.pwa-ios-step-number {
+    background-color: #2a2a2a;
+    color: #d4af37;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    flex-shrink: 0;
+    border: 1px solid rgba(212, 175, 55, 0.3);
+}

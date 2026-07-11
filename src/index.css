@@ -12,8 +12,8 @@
   --text: #ffffff;
   --text-secondary: rgba(255, 255, 255, 0.6);
   --bg: #000000;
-  --bg-card: rgba(255, 255, 255, 0.02);
-  --border: rgba(188, 136, 27, 0.1);
+  --bg-card: #151515;
+  --border: rgba(188, 136, 27, 0.2);
   --success: #10b981;
   --error: #ef4444;
   --warning: #f59e0b;

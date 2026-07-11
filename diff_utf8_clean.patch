@@ -1,0 +1,318 @@
+diff --git a/src/pages/AdminPage.jsx b/src/pages/AdminPage.jsx
+index 59426ba..6604cd0 100644
+--- a/src/pages/AdminPage.jsx
++++ b/src/pages/AdminPage.jsx
+@@ -69,11 +69,39 @@ function AdminPage() {
+   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, type: null, id: null, message: '' })
+ 
+   // New states for settings
+-  const [activeTab, setActiveTab] = useState('bookings') // 'bookings', 'services', 'hours', 'settings'
++  const [activeTab, setActiveTab] = useState('dashboard') // 'dashboard', 'bookings', 'services', 'hours', 'settings', 'customers', 'barbers'
++  const [customers, setCustomers] = useState([]);
++  const [customerSearch, setCustomerSearch] = useState('');
++  
++  const loadCustomers = async () => {
++    try {
++      const res = await api.get('/api/admin/customers', { headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` } });
++      setCustomers(res.data);
++    } catch (e) { console.error(e); }
++  };
++  
++  useEffect(() => {
++    if (activeTab === 'customers') loadCustomers();
++  }, [activeTab]);
++
+   const [allServices, setAllServices] = useState([])
+   const [showServiceModal, setShowServiceModal] = useState(false)
+   const [editingService, setEditingService] = useState(null)
+-  const [serviceForm, setServiceForm] = useState({ name: '', duration: 30, price: 0, active: true })
++  const [serviceForm, setServiceForm] = useState({ name: '', duration: 30, price: 0, active: true })
++
++  const [showBarberModal, setShowBarberModal] = useState(false)
++  const [editingBarber, setEditingBarber] = useState(null)
++  const [barberForm, setBarberForm] = useState({ 
++      name: '', 
++      active: true, 
++      useDefaultHours: true,
++      working_hours: {
++          weekday: { start: '09:00', end: '20:00', closed: false, breaks: [] },
++          saturday: { start: '09:00', end: '22:00', closed: false, breaks: [] },
++          sunday: { start: '10:00', end: '18:00', closed: true, breaks: [] }
++      }
++  })
++
+   const [workingHours, setWorkingHours] = useState({
+     weekday: { start: '09:00', end: '20:00' },
+     saturday: { start: '09:00', end: '22:00' },
+@@ -490,6 +518,62 @@ function AdminPage() {
+     }
+   }
+ 
++  
++  const handleSaveBarber = async (e) => {
++    e.preventDefault()
++    try {
++      const payload = {
++        name: barberForm.name,
++        active: barberForm.active,
++        working_hours: barberForm.useDefaultHours ? null : barberForm.working_hours
++      }
++      if (editingBarber) {
++        await api.put(`/api/admin/barbers/${editingBarber._id || editingBarber.id}`, payload, {
++          headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
++        })
++        setToast({ message: 'Koltuk g├╝ncellendi', type: 'success' })
++      } else {
++        await api.post('/api/admin/barbers', payload, {
++          headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
++        })
++        setToast({ message: 'Yeni koltuk eklendi', type: 'success' })
++      }
++      setShowBarberModal(false)
++      loadBarbers()
++    } catch (error) {
++      setToast({ message: '─░┼şlem ba┼şar─▒s─▒z', type: 'error' })
++    }
++  }
++
++  const handleDeleteBarber = async (id) => {
++    if (!window.confirm('Bu koltu─şu silmek istedi─şinize emin misiniz?')) return
++    try {
++      await api.delete(`/api/admin/barbers/${id}`, {
++        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
++      })
++      setToast({ message: 'Koltuk silindi', type: 'success' })
++      loadBarbers()
++    } catch (error) {
++      setToast({ message: 'Silme i┼şlemi ba┼şar─▒s─▒z', type: 'error' })
++    }
++  }
++
++  const openEditBarber = (barber) => {
++    setEditingBarber(barber)
++    setBarberForm({
++      name: barber.name,
++      active: barber.active !== false,
++      useDefaultHours: barber.working_hours == null,
++      working_hours: barber.working_hours || {
++          weekday: { start: '09:00', end: '20:00', closed: false, breaks: [] },
++          saturday: { start: '09:00', end: '22:00', closed: false, breaks: [] },
++          sunday: { start: '10:00', end: '18:00', closed: true, breaks: [] }
++      }
++    })
++    setShowBarberModal(true)
++  }
++
++
+   const handleUpdateService = async (e) => {
+     e.preventDefault()
+     try {
+@@ -1205,15 +1289,36 @@ function AdminPage() {
+   }
+ 
+   return (
+-    <div className="admin-page versace-vertical-border versace-vertical-border-right">
+-      <header className="admin-header">
+-        <div className="container header-inner">
+-          <div className="header-title">
+-            <h1>Admin</h1>
+-            <p className="header-sub">14 g├╝nl├╝k takvim, mobil ├Âncelikli</p>
++    <div className="admin-layout">
++      <aside className="admin-sidebar">
++        <div className="sidebar-brand">
++          <h2>Hairlogy</h2>
++          <span className="badge">Admin</span>
++        </div>
++        <nav className="sidebar-nav">
++          <button className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleTabChange('dashboard')}><TrendingUp size={18} /><span>Dashboard</span></button>
++          <button className={`nav-item ${activeTab === 'bookings' ? 'active' : ''}`} onClick={() => handleTabChange('bookings')}><Calendar size={18} /><span>Randevular</span></button>
++          <button className={`nav-item ${activeTab === 'barbers' ? 'active' : ''}`} onClick={() => handleTabChange('barbers')}><Users size={18} /><span>Koltuk Y├Ânetimi</span></button>
++          <button className={`nav-item ${activeTab === 'customers' ? 'active' : ''}`} onClick={() => handleTabChange('customers')}><Users size={18} /><span>M├╝┼şteriler</span></button>
++          <button className={`nav-item ${activeTab === 'services' ? 'active' : ''}`} onClick={() => handleTabChange('services')}><Scissors size={18} /><span>Hizmetler</span></button>
++          <button className={`nav-item ${activeTab === 'hours' ? 'active' : ''}`} onClick={() => handleTabChange('hours')}><Clock size={18} /><span>├çal─▒┼şma Saatleri</span></button>
++          <button className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => handleTabChange('settings')}><Settings size={18} /><span>Genel Ayarlar</span></button>
++        </nav>
++        <div className="sidebar-footer">
++          <button onClick={handleLogout} className="logout-btn">
++            <LogOut size={18} />
++            <span>├ç─▒k─▒┼ş Yap</span>
++          </button>
++        </div>
++      </aside>
++
++      <div className="admin-content">
++        <header className="admin-topbar">
++          <div className="topbar-left">
++            <h2>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h2>
+           </div>
+-          <div className="header-actions">
+-            <button
++          <div className="topbar-right">
++             <button
+               className={`maintenance-toggle-btn ${maintenanceMode ? 'active' : ''}`}
+               onClick={handleToggleMaintenance}
+               disabled={maintenanceLoading}
+@@ -1222,60 +1327,115 @@ function AdminPage() {
+               <Settings size={18} className={maintenanceLoading ? 'spin' : ''} />
+               <span>{maintenanceMode ? 'Bak─▒m─▒ Kapat' : 'Siteyi Bak─▒ma Al'}</span>
+             </button>
+-            <button
+-              className="create-booking-btn"
+-              onClick={() => setShowCreateBookingModal(true)}
+-              title="Yeni Randevu Olu┼ştur"
+-            >
+-              <Plus size={18} />
+-              <span>Randevu Ekle</span>
+-            </button>
+-            <button className="refresh-btn outline" onClick={() => loadBookings(showAllBookings)}>Yenile</button>
+-            <button onClick={handleLogout} className="logout-btn">
+-              <LogOut size={18} />
+-              <span>├ç─▒k─▒┼ş</span>
++            <button className="create-booking-btn" onClick={() => setShowCreateBookingModal(true)}>
++              <Plus size={18} /> Yeni Randevu
+             </button>
+           </div>
+-        </div>
+-      </header>
+-
+-      {/* Tab Navigation */}
+-      <nav className="admin-tabs">
+-        <div className="container">
+-          <button
+-            className={`tab-btn ${activeTab === 'bookings' ? 'active' : ''}`}
+-            onClick={() => handleTabChange('bookings')}
+-          >
+-            <Calendar size={16} />
+-            <span>Randevular</span>
+-          </button>
+-          <button
+-            className={`tab-btn ${activeTab === 'services' ? 'active' : ''}`}
+-            onClick={() => handleTabChange('services')}
+-          >
+-            <Scissors size={16} />
+-            <span>Hizmetler</span>
+-          </button>
+-          <button
+-            className={`tab-btn ${activeTab === 'hours' ? 'active' : ''}`}
+-            onClick={() => handleTabChange('hours')}
+-          >
+-            <Clock size={16} />
+-            <span>Saatler</span>
+-          </button>
+-          <button
+-            className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
+-            onClick={() => handleTabChange('settings')}
+-          >
+-            <Settings size={16} />
+-            <span>Ayarlar</span>
+-          </button>
+-        </div>
+-      </nav>
++        </header>
+ 
+       <main className="admin-main">
+         <div className="container">
+ 
++          {/* ============ DASHBOARD TAB ============ */}
++          {activeTab === 'dashboard' && (
++            <div className="dashboard-tab">
++               <div className="stats-grid">
++                  <div className="stat-card">
++                    <div className="stat-icon"><DollarSign /></div>
++                    <div className="stat-info">
++                      <p>Haftal─▒k Ciro</p>
++                      <h3>{stats?.weeklyRevenue || 0}Ôé║</h3>
++                    </div>
++                  </div>
++                  <div className="stat-card">
++                    <div className="stat-icon"><DollarSign /></div>
++                    <div className="stat-info">
++                      <p>Ayl─▒k Ciro</p>
++                      <h3>{stats?.monthlyRevenue || 0}Ôé║</h3>
++                    </div>
++                  </div>
++                  <div className="stat-card">
++                    <div className="stat-icon"><DollarSign /></div>
++                    <div className="stat-info">
++                      <p>3 Ayl─▒k Ciro</p>
++                      <h3>{stats?.threeMonthlyRevenue || 0}Ôé║</h3>
++                    </div>
++                  </div>
++                  <div className="stat-card">
++                    <div className="stat-icon"><Calendar /></div>
++                    <div className="stat-info">
++                      <p>Toplam Randevu</p>
++                      <h3>{stats?.totalBookings || 0}</h3>
++                    </div>
++                  </div>
++               </div>
++            </div>
++          )}
++
++          {/* ============ M├£┼ŞTER─░LER TAB ============ */}
++          {activeTab === 'customers' && (
++            <div className="customers-tab card">
++               <div className="section-header">
++                 <div>
++                   <h3>M├╝┼şteri Listesi</h3>
++                   <p className="muted">Ge├ğmi┼ş randevu alan t├╝m m├╝┼şteriler</p>
++                 </div>
++                 <input 
++                   type="text" 
++                   placeholder="─░sim veya telefon ile ara..." 
++                   value={customerSearch}
++                   onChange={e => setCustomerSearch(e.target.value)}
++                   className="search-input"
++                 />
++               </div>
++               <div className="table-responsive">
++                 <table className="data-table">
++                   <thead>
++                     <tr>
++                       <th>M├╝┼şteri Ad─▒</th>
++                       <th>Telefon</th>
++                       <th>Toplam Randevu</th>
++                       <th>Son Randevu Tarihi</th>
++                     </tr>
++                   </thead>
++                   <tbody>
++                     {customers.filter(c => c.name?.toLowerCase().includes(customerSearch.toLowerCase()) || c.phone?.includes(customerSearch)).map((c, i) => (
++                       <tr key={i}>
++                         <td>{c.name}</td>
++                         <td>{c.phone}</td>
++                         <td>{c.total_bookings}</td>
++                         <td>{c.last_booking}</td>
++                       </tr>
++                     ))}
++                     {customers.length === 0 && <tr><td colSpan="4" className="text-center muted">M├╝┼şteri bulunamad─▒.</td></tr>}
++                   </tbody>
++                 </table>
++               </div>
++            </div>
++          )}
++
++          {/* ============ KOLTUK / BERBER TAB ============ */}
++          {activeTab === 'barbers' && (
++            <div className="barbers-tab card">
++               <div className="section-header">
++                 <div>
++                   <h3>Koltuk Y├Ânetimi</h3>
++                   <p className="muted">Sistemdeki koltuklar─▒ (berberleri) y├Ânetin</p>
++                 </div>
++               </div>
++               <div className="barbers-grid">
++                  {Object.values(barbers).map((b, i) => (
++                     <div key={i} className="barber-card card">
++                        <h4>{b.name}</h4>
++                        <p>Koltuk No: {b.barber_id}</p>
++                        <span className={`status-badge ${b.active ? 'success' : 'error'}`}>{b.active ? 'Aktif' : 'Pasif'}</span>
++                     </div>
++                  ))}
++               </div>
++            </div>
++          )}
++
++
+           {/* ============ RANDEVULAR TAB ============ */}
+           {activeTab === 'bookings' && (
+             <>

@@ -848,7 +848,7 @@ app.post('/api/bookings', async (req, res) => {
             sendPushNotification({
                 title: 'Randevunuz Onaylandı! ✅',
                 body: `Sayın ${customerName}, ${appointmentDate} ${appointmentTime} tarihindeki randevunuz başarıyla oluşturuldu.`,
-                icon: '/icon-192.png'
+                icon: '/Gemini_Generated_Image_ii78ufii78ufii78.png'
             }, deviceId);
         }
 
